@@ -152,10 +152,10 @@ export const copy = {
     lineModeOffHint: '何もつけません。',
     lineModeZebraLabel: '隔行で色分け（zebra）',
     lineModeZebraHint:
-      '段落ごとに薄い色で交互に塗ります。「行を飛ばして読んでしまう」のを防ぐ効果が報告されています。',
-    lineModeFlatLabel: '全行に背景色（ベタ塗り）',
+      '1行ごとに薄い色を交互に塗ります（折り返した行も1行ずつ）。「行を飛ばして読んでしまう」のを防ぐ効果が報告されています。',
+    lineModeFlatLabel: '全行に色帯',
     lineModeFlatHint:
-      'すべての段落に同じ薄い色を入れます。段落のかたまりが見えやすくなります。',
+      'すべての行に色の帯を入れます（折り返した行も含めて、最終行まで1行ずつ）。今どこを読んでいるか、行の存在を見失いにくくなります。',
   },
   onboarding: {
     welcome: 'ようこそ。',

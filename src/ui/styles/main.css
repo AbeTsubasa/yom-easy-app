@@ -474,25 +474,41 @@ body {
   margin: 0 -0.1em;
 }
 
-/* === Line zebra (隔行で色分け) === */
-.reading-area--line-zebra .reading-area__preview p {
-  border-radius: 0.3rem;
-  padding: 0.4em 0.6em;
-  margin-left: -0.6em;
-  margin-right: -0.6em;
+/* === Line-level highlights (視覚的な1行単位、折り返し含む) ===
+   preview 全体に repeating-linear-gradient で行帯を描画する。
+   1行の高さは reading-line-height（CSS 変数）に追従するので、
+   ユーザーが行間スライダーを動かしても帯がずれない。
+   - zebra: 1行帯／1行透明 を最終行まで繰り返す
+   - flat : 各行に色帯、行間にわずかな透明帯（行が独立して見える）
+*/
+.reading-area--line-zebra .reading-area__preview,
+.reading-area--line-flat .reading-area__preview {
+  /* 1em は --reading-font-size 相当（preview 自体がこれを font-size に持つ） */
+  --line-h: calc(1em * var(--reading-line-height));
 }
 
-.reading-area--line-zebra .reading-area__preview p:nth-of-type(odd) {
-  background-color: rgba(34, 34, 34, 0.05);
+.reading-area--line-zebra .reading-area__preview {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(34, 34, 34, 0.05) 0,
+    rgba(34, 34, 34, 0.05) var(--line-h),
+    transparent var(--line-h),
+    transparent calc(var(--line-h) * 2)
+  );
+  background-origin: content-box;
+  background-clip: content-box;
 }
 
-/* === Line flat (全段落に同じ薄い背景) === */
-.reading-area--line-flat .reading-area__preview p {
-  border-radius: 0.3rem;
-  padding: 0.4em 0.6em;
-  margin-left: -0.6em;
-  margin-right: -0.6em;
-  background-color: rgba(34, 34, 34, 0.04);
+.reading-area--line-flat .reading-area__preview {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(34, 34, 34, 0.06) 0,
+    rgba(34, 34, 34, 0.06) calc(var(--line-h) * 0.85),
+    transparent calc(var(--line-h) * 0.85),
+    transparent var(--line-h)
+  );
+  background-origin: content-box;
+  background-clip: content-box;
 }
 
 /* === Line highlight (段落 hover)（v1.0 では UI 削除、CSSは残す） === */
