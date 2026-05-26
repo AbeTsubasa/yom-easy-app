@@ -156,6 +156,9 @@ export const copy = {
     lineModeFlatLabel: '全行に色帯',
     lineModeFlatHint:
       'すべての行に色の帯を入れます（折り返した行も含めて、最終行まで1行ずつ）。今どこを読んでいるか、行の存在を見失いにくくなります。',
+    highlightColorHeading: 'ハイライトの色',
+    highlightColorHint:
+      '色は個人差がとても大きいことが研究で分かっています。「正解の色」は決まっていません。合うものを選んでください。',
   },
   onboarding: {
     welcome: 'ようこそ。',

@@ -2,6 +2,7 @@ import { copy } from './ui/copy/ja';
 import {
   DEFAULT_SETTINGS,
   type FontFamilyKey,
+  type HighlightColorKey,
   type Settings,
   type ThemeKey,
 } from './types/settings';
@@ -23,6 +24,7 @@ import { recognizeImage, terminateOcr } from './modules/ocr';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
+import { HIGHLIGHT_COLOR_MAP } from './modules/highlight-color-registry';
 import { createTts } from './modules/tts';
 import {
   ensureTokenizer,
@@ -94,6 +96,13 @@ export function initApp(): void {
   const applyCustomText = (color: string): void => {
     document.documentElement.style.setProperty('--reading-text', color);
   };
+  /** ハイライト帯の色を切替（CSS 変数）。zebra / flat 共通で参照される */
+  const applyHighlightColor = (key: HighlightColorKey): void => {
+    document.documentElement.style.setProperty(
+      '--highlight-band-color',
+      HIGHLIGHT_COLOR_MAP[key].rgba,
+    );
+  };
 
   // 初回適用
   applyFontFamily(state.settings.fontFamily);
@@ -102,6 +111,7 @@ export function initApp(): void {
   applyLineHeight(state.settings.lineHeight);
   applyWordSpacing(state.settings.wordSpacing);
   applyThemePreset(state.settings.theme);
+  applyHighlightColor(state.settings.highlightColor);
   if (state.settings.customBg) applyCustomBg(state.settings.customBg);
   if (state.settings.customText) applyCustomText(state.settings.customText);
 
@@ -474,12 +484,18 @@ export function initApp(): void {
   });
 
   const highlightControls = createHighlightControls({
-    initial: state.settings.lineMode,
-    onChange: (mode) => {
+    initialMode: state.settings.lineMode,
+    initialColor: state.settings.highlightColor,
+    onModeChange: (mode) => {
       state.settings.lineMode = mode;
       // legacy フラグも同期（後方互換）
       state.settings.lineZebra = mode === 'zebra';
       readingArea.setLineMode(mode);
+      persistSettings();
+    },
+    onColorChange: (color) => {
+      state.settings.highlightColor = color;
+      applyHighlightColor(color);
       persistSettings();
     },
   });
