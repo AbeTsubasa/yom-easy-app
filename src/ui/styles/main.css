@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Typography — WCAG 2.1 AAA defaults */
+  --font-family: 'UD Digi Kyokasho NK-R', 'BIZ UDPGothic', 'Noto Sans JP', system-ui, sans-serif;
+  --font-size: 18px;
+  --line-height: 1.5;
+  --letter-spacing: 0.12em;
+  --word-spacing: 0.16em;
+  --paragraph-spacing: 2em;
+
+  /* Layout */
+  --max-width: 40em;
+  --content-padding: 1.5rem;
+
+  /* Color — Cream theme. 純黒・純白は避ける */
+  --bg-color: #fdf6e3;
+  --text-color: #222222;
+  --muted-color: #555555;
+  --accent-color: #edd1b0;
+
+  /* Focus */
+  --focus-ring: rgba(34, 34, 34, 0.45);
+
+  /* Reading Ruler placeholder (Sprint 4 で使用) */
+  --ruler-color: rgba(255, 220, 100, 0.3);
+  --ruler-height: 1.5em;
+}
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  letter-spacing: var(--letter-spacing);
+  word-spacing: var(--word-spacing);
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.reading-area {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--content-padding);
+}
+
+.reading-area__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  letter-spacing: 0.04em;
+}
+
+.reading-area__intro,
+.reading-area__placeholder {
+  margin: 0 0 var(--paragraph-spacing);
+}
+
+.reading-area__placeholder {
+  color: var(--muted-color);
+}
