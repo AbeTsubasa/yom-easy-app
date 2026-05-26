@@ -46,20 +46,22 @@ export function initApp(): void {
   }, 300);
 
   // --- Style application helpers (CSS variable mutations) ---
+  // すべて --reading-* 系を書き換え、textarea / preview のみに反映させる。
+  // UI 部品（ヘッダー・設定パネル・ボタン）の見た目は決して変わらない。
   const applyFontFamily = (key: FontFamilyKey): void => {
-    document.documentElement.style.setProperty('--font-family', FONT_MAP[key].stack);
+    document.documentElement.style.setProperty('--reading-font-family', FONT_MAP[key].stack);
   };
   const applyFontSize = (px: number): void => {
-    document.documentElement.style.setProperty('--font-size', `${px}px`);
+    document.documentElement.style.setProperty('--reading-font-size', `${px}px`);
   };
   const applyLetterSpacing = (em: number): void => {
-    document.documentElement.style.setProperty('--letter-spacing', `${em}em`);
+    document.documentElement.style.setProperty('--reading-letter-spacing', `${em}em`);
   };
   const applyLineHeight = (ratio: number): void => {
-    document.documentElement.style.setProperty('--line-height', String(ratio));
+    document.documentElement.style.setProperty('--reading-line-height', String(ratio));
   };
   const applyWordSpacing = (em: number): void => {
-    document.documentElement.style.setProperty('--word-spacing', `${em}em`);
+    document.documentElement.style.setProperty('--reading-word-spacing', `${em}em`);
   };
   /**
    * 色テーマは reading-area（textarea / プレビュー）にだけ適用する。

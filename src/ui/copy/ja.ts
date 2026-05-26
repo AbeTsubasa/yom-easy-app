@@ -79,7 +79,7 @@ export const copy = {
     optionDisclaimer:
       'これらのフォントは、合う方と合わない方がいます。研究では「全員に効く」とは言えていません。試してみて、合えば使う、くらいの気持ちで選んでください。',
     webFontPending:
-      'OpenDyslexic / Dyslexie は、Day 7 で Web フォントを組み込みます。今は端末にあるフォントへフォールバックします。',
+      'OpenDyslexic はオンラインで読み込みます。Dyslexie は商用フォントのため、合えば端末にインストールしたうえで選んでください。',
     spacingHeading: '文字と行の間隔',
     spacingHint: 'スライダーを動かすと、すぐに見え方が変わります。',
     fontSizeLabel: '文字の大きさ',

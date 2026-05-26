@@ -10,6 +10,16 @@
       content="文字の大きさ、行の間、色、ふりがな、読み上げ。あなたに合う読みやすさを見つけられるブラウザツールです。"
     />
     <meta name="color-scheme" content="light dark" />
+
+    <!-- Web フォント。macOS にプリインストールされていない和文 / 欧文を補う。
+         OS 内蔵フォント（UD Digi Kyokasho、メイリオ等）はフォールバックチェーンで使う。
+         display=swap で読み込み完了前は OS フォントで表示し、CLS / 白画面を回避。 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Open+Sans:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="app"></div>

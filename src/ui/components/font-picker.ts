@@ -13,17 +13,22 @@ export interface FontPickerController {
 }
 
 /**
- * フォント選択 UI。
- * - 各ボタンは「そのフォント自体で描画」されるので、選択行為がそのままプレビュー
- * - role=radiogroup / role=radio で SR 対応
- * - キーボード ↑↓ ←→ で移動
- * - 「専用フォント（オプション）」グループには研究上の留意点を1行添える
+ * フォント選択 UI（入れ子アコーディオン）。
+ *
+ * 親アコーディオン（settings-panel 側）で「フォント」を開くと、ここに
+ * 3つの子アコーディオン（日本語 / 英語 / 専用）が現れる。
+ * さらにその一つを開くと、その分類のフォント選択肢が見える。
+ *
+ * 設計方針：
+ * - 階層は「親 > 子 > 孫」の3階層
+ * - 一度に開く子は1つだけ（exclusive accordion）
+ * - 各ボタンは「そのフォント自体で描画」される（選択 = プレビュー）
+ * - 専用グループには研究上の留意点を本体内に添える
  */
 export function createFontPicker(opts: FontPickerOptions): FontPickerController {
   const wrapper = document.createElement('div');
   wrapper.className = 'font-picker';
 
-  // 見出しは accordion 親が提供するので、ここでは出さない
   const hint = document.createElement('p');
   hint.className = 'font-picker__hint';
   hint.textContent = copy.settings.fontHint;
@@ -39,25 +44,54 @@ export function createFontPicker(opts: FontPickerOptions): FontPickerController 
   let currentKey: FontFamilyKey = opts.initial;
   const buttons: HTMLButtonElement[] = [];
 
-  (['jp', 'en', 'option'] as const).forEach((group) => {
-    const groupContainer = document.createElement('section');
-    groupContainer.className = `font-picker__group font-picker__group--${group}`;
+  interface GroupItem {
+    root: HTMLElement;
+    toggle: HTMLButtonElement;
+    body: HTMLElement;
+    icon: HTMLElement;
+  }
+  const groupItems: GroupItem[] = [];
 
-    const groupHeading = document.createElement('h4');
-    groupHeading.className = 'font-picker__group-heading';
-    groupHeading.textContent = groupLabels[group];
-    groupContainer.appendChild(groupHeading);
+  (['jp', 'en', 'option'] as const).forEach((group, idx) => {
+    const item = document.createElement('div');
+    item.className = 'accordion-item font-picker__group';
 
+    const bodyId = `font-group-body-${group}`;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'accordion-item__button font-picker__group-toggle';
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    toggleBtn.setAttribute('aria-controls', bodyId);
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'accordion-item__label';
+    labelEl.textContent = groupLabels[group];
+
+    const icon = document.createElement('span');
+    icon.className = 'accordion-item__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '▶';
+
+    toggleBtn.appendChild(labelEl);
+    toggleBtn.appendChild(icon);
+
+    const body = document.createElement('div');
+    body.id = bodyId;
+    body.className = 'accordion-item__body';
+    body.hidden = true;
+
+    // 専用フォントグループには研究上の注意書きを添える
     if (group === 'option') {
       const disclaimer = document.createElement('p');
       disclaimer.className = 'font-picker__disclaimer';
       disclaimer.textContent = copy.settings.optionDisclaimer;
-      groupContainer.appendChild(disclaimer);
+      body.appendChild(disclaimer);
 
       const pending = document.createElement('p');
       pending.className = 'font-picker__pending';
       pending.textContent = copy.settings.webFontPending;
-      groupContainer.appendChild(pending);
+      body.appendChild(pending);
     }
 
     const radioGroup = document.createElement('div');
@@ -72,24 +106,31 @@ export function createFontPicker(opts: FontPickerOptions): FontPickerController 
       buttons.push(button);
     });
 
-    groupContainer.appendChild(radioGroup);
-    wrapper.appendChild(groupContainer);
+    body.appendChild(radioGroup);
+
+    toggleBtn.addEventListener('click', () => toggleGroup(idx));
+
+    item.appendChild(toggleBtn);
+    item.appendChild(body);
+    wrapper.appendChild(item);
+
+    groupItems.push({ root: item, toggle: toggleBtn, body, icon });
   });
 
-  // キーボード操作：↑↓←→ で前後移動
-  wrapper.addEventListener('keydown', (e) => {
-    const isPrev = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
-    const isNext = e.key === 'ArrowDown' || e.key === 'ArrowRight';
-    if (!isPrev && !isNext) return;
-    const activeIdx = buttons.findIndex((b) => b.getAttribute('aria-checked') === 'true');
-    if (activeIdx === -1) return;
-    e.preventDefault();
-    const delta = isPrev ? -1 : 1;
-    const nextIdx = (activeIdx + delta + buttons.length) % buttons.length;
-    const nextKey = buttons[nextIdx].dataset.key as FontFamilyKey;
-    selectKey(nextKey);
-    buttons[nextIdx].focus();
-  });
+  function applyGroupOpenState(targetIdx: number | null): void {
+    groupItems.forEach((g, i) => {
+      const isOpen = i === targetIdx;
+      g.toggle.setAttribute('aria-expanded', String(isOpen));
+      g.body.hidden = !isOpen;
+      g.icon.textContent = isOpen ? '▼' : '▶';
+      g.root.classList.toggle('accordion-item--open', isOpen);
+    });
+  }
+
+  function toggleGroup(targetIdx: number): void {
+    const isOpen = groupItems[targetIdx].toggle.getAttribute('aria-expanded') === 'true';
+    applyGroupOpenState(isOpen ? null : targetIdx);
+  }
 
   function selectKey(key: FontFamilyKey): void {
     if (key === currentKey) return;
@@ -106,6 +147,23 @@ export function createFontPicker(opts: FontPickerOptions): FontPickerController 
       btn.tabIndex = isActive ? 0 : -1;
     });
   }
+
+  // キーボード：↑↓←→ で前後移動（フォントボタン内）
+  wrapper.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('font-picker__option')) return;
+    const isPrev = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
+    const isNext = e.key === 'ArrowDown' || e.key === 'ArrowRight';
+    if (!isPrev && !isNext) return;
+    const activeIdx = buttons.findIndex((b) => b.getAttribute('aria-checked') === 'true');
+    if (activeIdx === -1) return;
+    e.preventDefault();
+    const delta = isPrev ? -1 : 1;
+    const nextIdx = (activeIdx + delta + buttons.length) % buttons.length;
+    const nextKey = buttons[nextIdx].dataset.key as FontFamilyKey;
+    selectKey(nextKey);
+    buttons[nextIdx].focus();
+  });
 
   applyState();
 
