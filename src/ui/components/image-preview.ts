@@ -161,9 +161,10 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
     closeButton.disabled = next;
   };
 
-  /** Tesseract.js のステータス文字列を、ユーザー向けの日本語に翻訳する */
+  /** Tesseract.js / 前処理 のステータス文字列を、ユーザー向けの日本語に翻訳する */
   const translateStatus = (raw: string): string => {
     const lower = raw.toLowerCase();
+    if (lower.includes('preprocess')) return copy.ocr.preprocessing;
     if (lower.includes('loading')) return copy.ocr.loadingModel;
     if (lower.includes('initializing')) return copy.ocr.initializing;
     if (lower.includes('recognizing')) return copy.ocr.recognizing;

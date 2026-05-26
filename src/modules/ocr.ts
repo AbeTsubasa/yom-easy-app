@@ -1,4 +1,5 @@
 import type { Worker, ImageLike } from 'tesseract.js';
+import { preprocessImage } from './image-preprocess';
 
 /**
  * Tesseract.js (OCR) のラッパー。
@@ -88,7 +89,8 @@ export function ensureOcrWorker(): Promise<Worker> {
 
 /**
  * 画像から文字を読み取り、トリム済みのテキストを返す。
- * progress 通知は recognize 開始から完了まで活性化。
+ * 内部で前処理（リサイズ・グレースケール・自動レベル補正）を透過適用する。
+ * 前処理に失敗した場合は原画像にフォールバック（OCR 自体は止めない）。
  */
 export async function recognizeImage(
   source: ImageLike,
@@ -96,8 +98,20 @@ export async function recognizeImage(
 ): Promise<string> {
   activeProgressCallback = onProgress ?? null;
   try {
+    let imageToUse: ImageLike = source;
+    // File が来た場合だけ前処理を試みる（Blob / URL は素通し）
+    if (source instanceof File) {
+      try {
+        activeProgressCallback?.({ status: 'preprocessing', progress: 0 });
+        imageToUse = await preprocessImage(source);
+        activeProgressCallback?.({ status: 'preprocessing', progress: 1 });
+      } catch (e) {
+        console.warn('[ocr] preprocess failed, using original image:', e);
+        imageToUse = source;
+      }
+    }
     const worker = await ensureOcrWorker();
-    const result = await worker.recognize(source);
+    const result = await worker.recognize(imageToUse);
     return result.data.text.trim();
   } finally {
     activeProgressCallback = null;

@@ -46,6 +46,7 @@ export const copy = {
   ocr: {
     initializing: '読み取りの準備中…',
     loadingModel: '日本語の辞書を読み込み中…',
+    preprocessing: '画像を読み取りやすく整えています…',
     recognizing: '文字を読み取り中…',
     cancelled: '読み取りを中止しました。',
     noText: '文字が見つからなかったみたい。明るいところで、もう一度撮ってみよう。',
