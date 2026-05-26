@@ -42,8 +42,18 @@ export interface Settings {
   wordSpacing: number;
   /** 1–3 em */
   paragraphSpacing: number;
-  /** カラーテーマ */
+  /** カラーテーマプリセット */
   theme: ThemeKey;
+  /**
+   * 自由カラーピッカーで上書きされた背景色。
+   * null のときはプリセット（theme）の色を使う。
+   */
+  customBg: string | null;
+  /**
+   * 自由カラーピッカーで上書きされた文字色。
+   * null のときはプリセット（theme）の色を使う。
+   */
+  customText: string | null;
 }
 
 /**
@@ -58,4 +68,6 @@ export const DEFAULT_SETTINGS: Settings = {
   wordSpacing: 0.16,
   paragraphSpacing: 2,
   theme: 'cream',
+  customBg: null,
+  customText: null,
 };

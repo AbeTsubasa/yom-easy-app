@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   type FontFamilyKey,
   type Settings,
+  type ThemeKey,
   type ViewMode,
 } from './types/settings';
 import { createHeader } from './ui/components/header';
@@ -12,8 +13,10 @@ import { createFileInput } from './ui/components/file-input';
 import { createFontPicker } from './ui/components/font-picker';
 import { createSettingsPanel } from './ui/components/settings-panel';
 import { createSpacingControls } from './ui/components/spacing-controls';
+import { createColorControls } from './ui/components/color-controls';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
+import { THEME_MAP } from './modules/theme-registry';
 
 interface AppState {
   text: string;
@@ -47,12 +50,33 @@ export function initApp(): void {
   const applyWordSpacing = (em: number): void => {
     document.documentElement.style.setProperty('--word-spacing', `${em}em`);
   };
+  const applyThemePreset = (key: ThemeKey): void => {
+    const preset = THEME_MAP[key];
+    const root = document.documentElement.style;
+    root.setProperty('--bg-color', preset.bg);
+    root.setProperty('--text-color', preset.text);
+    root.setProperty('--muted-color', preset.muted);
+    root.setProperty('--accent-color', preset.accent);
+    root.setProperty('--border-color', preset.border);
+    root.setProperty('--button-bg', preset.buttonBg);
+    root.setProperty('--button-bg-active', preset.buttonBgActive);
+    root.setProperty('--focus-ring', preset.focusRing);
+  };
+  const applyCustomBg = (color: string): void => {
+    document.documentElement.style.setProperty('--bg-color', color);
+  };
+  const applyCustomText = (color: string): void => {
+    document.documentElement.style.setProperty('--text-color', color);
+  };
 
   applyFontFamily(state.settings.fontFamily);
   applyFontSize(state.settings.fontSize);
   applyLetterSpacing(state.settings.letterSpacing);
   applyLineHeight(state.settings.lineHeight);
   applyWordSpacing(state.settings.wordSpacing);
+  applyThemePreset(state.settings.theme);
+  if (state.settings.customBg) applyCustomBg(state.settings.customBg);
+  if (state.settings.customText) applyCustomText(state.settings.customText);
 
   // --- Error region ---
   const errorRegion = document.createElement('div');
@@ -162,8 +186,35 @@ export function initApp(): void {
     },
   });
 
+  const colorControls = createColorControls({
+    initial: {
+      theme: state.settings.theme,
+      customBg: state.settings.customBg,
+      customText: state.settings.customText,
+    },
+    onPresetChange: (key) => {
+      state.settings.theme = key;
+      state.settings.customBg = null;
+      state.settings.customText = null;
+      applyThemePreset(key);
+    },
+    onCustomBgChange: (color) => {
+      state.settings.customBg = color;
+      applyCustomBg(color);
+    },
+    onCustomTextChange: (color) => {
+      state.settings.customText = color;
+      applyCustomText(color);
+    },
+    onResetCustom: () => {
+      state.settings.customBg = null;
+      state.settings.customText = null;
+      applyThemePreset(state.settings.theme);
+    },
+  });
+
   const settingsPanel = createSettingsPanel({
-    children: [fontPicker.element, spacingControls.element],
+    children: [fontPicker.element, spacingControls.element, colorControls.element],
   });
 
   // --- Layout ---
