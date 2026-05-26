@@ -128,6 +128,26 @@ export function initApp(): void {
     errorRegion.textContent = '';
   };
 
+  // --- Notice region (穏やかなフィードバック、読了通知など) ---
+  const noticeRegion = document.createElement('div');
+  noticeRegion.className = 'app-notice';
+  noticeRegion.setAttribute('role', 'status');
+  noticeRegion.setAttribute('aria-live', 'polite');
+  noticeRegion.hidden = true;
+
+  let noticeTimer: number | null = null;
+  const showNotice = (message: string, ariaLabel?: string): void => {
+    noticeRegion.textContent = message;
+    if (ariaLabel) noticeRegion.setAttribute('aria-label', ariaLabel);
+    noticeRegion.hidden = false;
+    if (noticeTimer !== null) window.clearTimeout(noticeTimer);
+    noticeTimer = window.setTimeout(() => {
+      noticeRegion.hidden = true;
+      noticeRegion.textContent = '';
+      noticeTimer = null;
+    }, 5000);
+  };
+
   // --- File handling ---
   const applyLoadResult = (result: FileLoadResult): void => {
     if (result.ok) {
@@ -267,6 +287,10 @@ export function initApp(): void {
     onError: (reason) => {
       if (reason === 'unsupported') showError(copy.tts.unsupported);
       else if (reason === 'no-voice') showError(copy.tts.noJapaneseVoice);
+    },
+    onComplete: () => {
+      // 自然完了時のみ穏やかな労いを5秒だけ表示。ユーザー stop では出ない
+      showNotice(copy.tts.completed, copy.tts.completedAria);
     },
   });
 
@@ -459,6 +483,7 @@ export function initApp(): void {
 
   readingColumn.appendChild(actionsBar);
   readingColumn.appendChild(errorRegion);
+  readingColumn.appendChild(noticeRegion);
   readingColumn.appendChild(readingArea.element);
 
   main.appendChild(readingColumn);

@@ -31,6 +31,11 @@ export interface TtsOptions {
   onBoundary?: (event: BoundaryEvent) => void;
   /** エラー（音声未対応など）の通知 */
   onError?: (reason: 'unsupported' | 'no-voice' | 'unknown') => void;
+  /**
+   * 読み上げが「自然に終わった」ときに発火（ユーザー stop は対象外）。
+   * UI 側で「お疲れさま」式の控えめなフィードバックを出すために使う。
+   */
+  onComplete?: () => void;
 }
 
 export interface TtsController {
@@ -63,6 +68,8 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
   let state: TtsState = 'idle';
   let currentUtterance: SpeechSynthesisUtterance | null = null;
   let options: TtsOptions = { ...initialOptions };
+  /** ユーザーが stop を押した直後の onend を「完了」扱いしないためのフラグ */
+  let wasStopped = false;
   const voicesChangedListeners = new Set<() => void>();
 
   if (supported) {
@@ -104,8 +111,13 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
 
     utterance.onstart = () => setState('playing');
     utterance.onend = () => {
+      const naturallyFinished = !wasStopped;
+      wasStopped = false;
       setState('idle');
       currentUtterance = null;
+      if (naturallyFinished) {
+        options.onComplete?.();
+      }
     };
     utterance.onerror = (e) => {
       // 'interrupted' (= 別の発話で中断) はエラー扱いしない
@@ -155,7 +167,10 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
   };
 
   const startSpeaking = (text: string): void => {
-    window.speechSynthesis.cancel(); // 前のがあれば止める
+    // 前のがあれば止める。これも onend を発火させるが、新しい発話の開始扱いなので
+    // wasStopped は立てない（直後の onend は補正対象外）
+    if (currentUtterance) wasStopped = true;
+    window.speechSynthesis.cancel();
     currentUtterance = buildUtterance(text);
     window.speechSynthesis.speak(currentUtterance);
   };
@@ -174,6 +189,7 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
 
   const stop = (): void => {
     if (!supported) return;
+    wasStopped = true; // 直後の onend を「完了」と誤判定しないため
     window.speechSynthesis.cancel();
     currentUtterance = null;
     setState('idle');

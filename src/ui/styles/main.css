@@ -211,6 +211,21 @@ body {
   display: none;
 }
 
+/* === Notice region (穏やかなフィードバック：読了通知など) ===
+   医療系の青十字を避け、暖かみのあるアース系の緑色 */
+.app-notice {
+  background-color: #f0f5e3;
+  border: 1px solid #c8d8a4;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #3e5418;
+  font-size: 0.95rem;
+}
+
+.app-notice[hidden] {
+  display: none;
+}
+
 /* ==========================================================================
    Reading area (empty / read / edit)
    ========================================================================== */

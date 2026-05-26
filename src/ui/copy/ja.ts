@@ -49,6 +49,8 @@ export const copy = {
       'お使いの端末には、日本語の音声が見つからないみたい。OSの設定で日本語音声を追加できる場合があります。',
     nothingToRead: '読み上げる文章が、まだありません。',
     preparingError: '読み上げの準備中に少し問題が起きたみたい。もう一度試してみてください。',
+    completed: 'お疲れさま。ここまで読み終わりましたね。',
+    completedAria: '読み上げが終わりました',
   },
   reader: {
     textareaLabel: '読みたい文章',
