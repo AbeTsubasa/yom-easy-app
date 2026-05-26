@@ -327,7 +327,8 @@ body {
    Settings panel — mobile = drawer / PC = sticky sidebar
    ========================================================================== */
 .settings-panel {
-  /* mobile default: fixed bottom drawer */
+  /* mobile default: bottom sheet that covers ~half the screen
+     so the reading area stays visible at the top */
   position: fixed;
   left: 0;
   right: 0;
@@ -335,10 +336,11 @@ body {
   transform: translateY(100%);
   transition: transform 250ms ease;
   background-color: var(--bg-color);
-  border-top: 1px solid var(--border-color);
-  border-radius: 1rem 1rem 0 0;
-  padding: 1rem 1.25rem 1.5rem;
-  max-height: 80vh;
+  border-top: 2px solid var(--border-color);
+  border-radius: 1.25rem 1.25rem 0 0;
+  padding: 0.4rem 1.25rem 1.25rem;
+  height: 55vh;
+  max-height: 55vh;
   overflow-y: auto;
   z-index: 50;
   box-shadow: var(--elevation-2);
@@ -346,6 +348,17 @@ body {
 
 .settings-panel[data-open='true'] {
   transform: translateY(0);
+}
+
+/* Drag handle (visual cue: "this panel comes from the bottom") */
+.settings-panel::before {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+  margin: 0 auto 0.6rem;
 }
 
 .settings-panel__heading {
@@ -360,38 +373,29 @@ body {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  width: 2rem;
-  height: 2rem;
-  background-color: transparent;
-  border: none;
-  font-size: 1.2rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  font-size: 1.1rem;
   cursor: pointer;
-  color: var(--muted-color);
+  color: var(--text-color);
   border-radius: 50%;
+  z-index: 1;
 }
 
 .settings-panel__close:hover {
-  background-color: var(--button-bg);
-  color: var(--text-color);
+  background-color: var(--button-bg-active);
 }
 
-/* Backdrop (mobile only, when drawer is open) */
+/* Backdrop is intentionally hidden: keeping the reading area touchable
+   while the drawer is open allows the user to scroll/select text and
+   watch how settings affect it in real time. Close via ✕ or Esc. */
 .settings-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.3);
-  z-index: 45;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms ease;
+  display: none !important;
 }
 
-.settings-backdrop[data-open='true'] {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* FAB — mobile only */
+/* FAB — mobile only. Hidden while the drawer is open. */
 .settings-fab {
   position: fixed;
   bottom: 1.25rem;
@@ -406,10 +410,16 @@ body {
   cursor: pointer;
   z-index: 40;
   box-shadow: var(--elevation-1);
+  transition: opacity 150ms ease;
 }
 
 .settings-fab:hover {
   background-color: var(--button-bg-active);
+}
+
+.settings-fab[aria-expanded='true'] {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ==========================================================================
