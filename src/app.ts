@@ -1,10 +1,18 @@
 import { copy } from './ui/copy/ja';
-import { DEFAULT_SETTINGS, type Settings, type ViewMode } from './types/settings';
+import {
+  DEFAULT_SETTINGS,
+  type FontFamilyKey,
+  type Settings,
+  type ViewMode,
+} from './types/settings';
 import { createHeader } from './ui/components/header';
 import { createModeToggle } from './ui/components/mode-toggle';
 import { createReadingArea } from './ui/components/reading-area';
 import { createFileInput } from './ui/components/file-input';
+import { createFontPicker } from './ui/components/font-picker';
+import { createSettingsPanel } from './ui/components/settings-panel';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
+import { FONT_MAP } from './modules/font-registry';
 
 interface AppState {
   text: string;
@@ -21,6 +29,12 @@ export function initApp(): void {
     mode: 'edit',
     settings: { ...DEFAULT_SETTINGS },
   };
+
+  // --- Style application helpers (CSS variable mutations) ---
+  const applyFontFamily = (key: FontFamilyKey): void => {
+    document.documentElement.style.setProperty('--font-family', FONT_MAP[key].stack);
+  };
+  applyFontFamily(state.settings.fontFamily);
 
   // --- Error region ---
   const errorRegion = document.createElement('div');
@@ -94,6 +108,19 @@ export function initApp(): void {
     },
   });
 
+  // --- Settings panel (Day 3: font picker; Day 4-5 でスライダー/色テーマを追加) ---
+  const fontPicker = createFontPicker({
+    initial: state.settings.fontFamily,
+    onChange: (key) => {
+      state.settings.fontFamily = key;
+      applyFontFamily(key);
+    },
+  });
+
+  const settingsPanel = createSettingsPanel({
+    children: [fontPicker.element],
+  });
+
   // --- Layout ---
   const header = createHeader();
 
@@ -109,6 +136,7 @@ export function initApp(): void {
   main.appendChild(controls);
   main.appendChild(errorRegion);
   main.appendChild(readingArea.element);
+  main.appendChild(settingsPanel);
 
   // --- Drag & Drop overlay (window-wide) ---
   const dropOverlay = document.createElement('div');

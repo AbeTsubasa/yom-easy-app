@@ -252,6 +252,96 @@ body {
   text-align: right;
 }
 
+/* === Settings panel === */
+.settings-panel {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--accent-color);
+}
+
+.settings-panel__heading {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* === Font picker === */
+.font-picker__heading {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.font-picker__hint {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+.font-picker__group {
+  margin-bottom: 1.5rem;
+}
+
+.font-picker__group:last-child {
+  margin-bottom: 0;
+}
+
+.font-picker__group-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted-color);
+}
+
+.font-picker__disclaimer,
+.font-picker__pending {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.font-picker__radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.font-picker__option {
+  appearance: none;
+  border: 1px solid var(--border-color);
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  /* font-family は JS から個別設定 — 自己プレビュー用 */
+}
+
+.font-picker__option:hover {
+  background-color: var(--button-bg-active);
+}
+
+.font-picker__option--active {
+  background-color: var(--button-bg-active);
+  border-color: var(--text-color);
+  border-width: 2px;
+  padding: calc(0.55rem - 1px) calc(0.9rem - 1px);
+}
+
+.font-picker__option-label {
+  font-size: 1rem;
+}
+
 /* === Drop overlay === */
 .drop-overlay {
   position: fixed;

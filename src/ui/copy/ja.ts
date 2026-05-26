@@ -51,6 +51,18 @@ export const copy = {
     cameraDenied: 'カメラが使えないみたい。ファイルから選ぶこともできます。',
     ocrEmpty: '文字が見つからなかったみたい。明るいところで、もう一度撮ってみよう。',
   },
+  settings: {
+    panelHeading: '読み方の設定',
+    fontHeading: 'フォント',
+    fontHint: 'ボタン自体が、そのフォントで表示されます。試して、合うものを選んでください。',
+    groupJp: '日本語向け',
+    groupEn: '英語向け',
+    groupOption: '専用フォント（オプション）',
+    optionDisclaimer:
+      'これらのフォントは、合う方と合わない方がいます。研究では「全員に効く」とは言えていません。試してみて、合えば使う、くらいの気持ちで選んでください。',
+    webFontPending:
+      'OpenDyslexic / Dyslexie は、Day 7 で Web フォントを組み込みます。今は端末にあるフォントへフォールバックします。',
+  },
 } as const;
 
 export type Copy = typeof copy;
