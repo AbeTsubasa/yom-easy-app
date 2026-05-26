@@ -81,7 +81,7 @@ export const copy = {
   },
   actions: {
     paste: 'テキストを貼り付ける',
-    openFile: 'ファイルを開く',
+    openFile: '📁 ファイルを開く',
     openFileAria: 'テキストファイル（.txt / .md）を開く',
     capture: '📷 カメラで撮影',
     captureAria: '写真を撮るか、画像ファイルを選ぶ',
@@ -89,8 +89,10 @@ export const copy = {
     pause: '一時停止',
     resume: '再開',
     save: '今の設定を保存',
-    share: 'この設定を共有',
-    print: '印刷する',
+    share: '🔗 設定を共有',
+    shareAria: '今の設定の共有用 URL をクリップボードにコピーする',
+    print: '🖨 印刷',
+    printAria: '今の文章を印刷する',
     clear: '入力欄を空にする',
   },
   hints: {
@@ -100,6 +102,9 @@ export const copy = {
     typoOnOcr: '間違いがあれば直してね。',
     dropToOpen: 'ここにファイルを置くと開けます',
     acceptedTypes: '対応形式：.txt / .md（テキストファイル）',
+    shareCopied: '共有用の URL をコピーしました。',
+    shareFailed: 'コピーできなかったみたい。アドレスバーの URL を直接コピーしてください。',
+    shareNotice: '共有されたリンクから読み込まれた設定で開いています。',
   },
   errors: {
     fileUnreadable: 'このファイル、うまく読み込めなかったみたい。別の方法を試してみよう。',

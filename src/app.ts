@@ -24,6 +24,7 @@ import { createWakachiControls } from './ui/components/wakachi-controls';
 import { loadImageFile, disposeImage } from './modules/image-loader';
 import { recognizeImage, terminateOcr } from './modules/ocr';
 import { generateReadingHtml } from './modules/ruby';
+import { buildShareUrl, readSettingsFromHash, clearHash, copyToClipboard } from './modules/share';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -53,12 +54,20 @@ export function initApp(): void {
   const root = document.getElementById('app');
   if (!root) return;
 
-  // localStorage から復元。失敗時はデフォルト。
+  // 優先順：URL hash → localStorage → デフォルト
+  const fromHash = readSettingsFromHash();
   const persisted = loadSettings();
   const state: AppState = {
     text: '',
-    settings: persisted ?? { ...DEFAULT_SETTINGS },
+    settings: fromHash ?? persisted ?? { ...DEFAULT_SETTINGS },
   };
+  /** 共有リンク経由で起動したか。後で showNotice 呼び出しに使う */
+  const startedFromShareLink = fromHash !== null;
+  if (fromHash) {
+    // 共有リンク経由の起動：localStorage 上書き＋hash 消去（次回からは保存値が使われる）
+    saveSettings(state.settings);
+    clearHash();
+  }
 
   /** 設定変更を localStorage に debounce 保存 */
   const persistSettings = debounce(() => {
@@ -647,6 +656,34 @@ export function initApp(): void {
   actionsBar.appendChild(fileInput);
   actionsBar.appendChild(cameraInput);
 
+  // --- Print button ---
+  const printButton = document.createElement('button');
+  printButton.type = 'button';
+  printButton.className = 'app-action-button';
+  printButton.textContent = copy.actions.print;
+  printButton.setAttribute('aria-label', copy.actions.printAria);
+  printButton.addEventListener('click', () => {
+    window.print();
+  });
+  actionsBar.appendChild(printButton);
+
+  // --- Share button ---
+  const shareButton = document.createElement('button');
+  shareButton.type = 'button';
+  shareButton.className = 'app-action-button';
+  shareButton.textContent = copy.actions.share;
+  shareButton.setAttribute('aria-label', copy.actions.shareAria);
+  shareButton.addEventListener('click', async () => {
+    const url = buildShareUrl(state.settings);
+    const ok = await copyToClipboard(url);
+    if (ok) {
+      showNotice(copy.hints.shareCopied);
+    } else {
+      showError(copy.hints.shareFailed);
+    }
+  });
+  actionsBar.appendChild(shareButton);
+
   readingColumn.appendChild(actionsBar);
   readingColumn.appendChild(errorRegion);
   readingColumn.appendChild(noticeRegion);
@@ -710,6 +747,11 @@ export function initApp(): void {
   root.appendChild(drawerBackdrop);
   root.appendChild(settingsFab);
   root.appendChild(dropOverlay);
+
+  // --- Share-link notice ---
+  if (startedFromShareLink) {
+    showNotice(copy.hints.shareNotice);
+  }
 
   // --- Onboarding (初回のみ表示) ---
   if (!isOnboardingDone()) {

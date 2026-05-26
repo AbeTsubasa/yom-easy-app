@@ -207,6 +207,30 @@ body {
   color: var(--muted-color);
 }
 
+/* === Plain action button (印刷・共有) — file-input__button と同パターン === */
+.app-action-button {
+  display: inline-block;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.5rem;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+}
+
+.app-action-button:hover {
+  background-color: var(--button-bg-active);
+}
+
+.app-action-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* ==========================================================================
    Image preview modal (Sprint 5)
    ========================================================================== */
@@ -1484,6 +1508,76 @@ body {
   border-radius: 0.75rem;
   border: 1px solid var(--accent-color);
   margin: 0;
+}
+
+/* ==========================================================================
+   Print stylesheet (Sprint 6 Day 1-2)
+   印刷時：UI を全部非表示、preview だけを白背景 + 黒文字で印刷
+   フォント・サイズ・字間・行間・ふりがな・分かち書きは維持
+   ハイライト（zebra/flat）は OFF（インク節約）
+   ========================================================================== */
+@media print {
+  /* UI 部品は全て隠す */
+  .app-header,
+  .app-main__actions,
+  .app-error,
+  .app-notice,
+  .reading-area__toolbar,
+  .reading-area__footer,
+  .reading-area__empty,
+  .reading-area__textarea,
+  .settings-panel,
+  .settings-fab,
+  .settings-backdrop,
+  .drop-overlay,
+  .onboarding,
+  .image-preview {
+    display: none !important;
+  }
+
+  /* 紙面いっぱいに preview を */
+  html,
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .app-main {
+    display: block !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .app-main__reading-column {
+    gap: 0 !important;
+  }
+
+  .reading-area {
+    min-height: 0 !important;
+  }
+
+  .reading-area__preview {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    padding: 0 !important;
+    /* zebra / flat の repeating-linear-gradient を解除 */
+    background-image: none !important;
+    min-height: 0 !important;
+    /* font-family / font-size / line-height / letter-spacing / word-spacing は
+       --reading-* の値を引き継ぐ（ユーザーの読みやすい設定で印刷される） */
+  }
+
+  /* ふりがな（rt）は印刷でもそのまま */
+  .reading-area__preview rt {
+    color: #000000 !important;
+    opacity: 1 !important;
+  }
+
+  /* ページ余白 */
+  @page {
+    margin: 1.5cm 1.5cm;
+  }
 }
 
 /* ==========================================================================
