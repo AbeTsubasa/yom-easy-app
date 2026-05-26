@@ -121,11 +121,11 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   let editing = false;
   /** ハイライト対応モードのトークン配列。null = 通常描画 */
   let highlightTokens: Token[] | null = null;
-  let zebraEnabled = false;
+  let lineZebraEnabled = false;
   let lineHighlightEnabled = false;
 
   const updateModifierClasses = (): void => {
-    wrapper.classList.toggle('reading-area--zebra', zebraEnabled);
+    wrapper.classList.toggle('reading-area--line-zebra', lineZebraEnabled);
     wrapper.classList.toggle('reading-area--line-highlight', lineHighlightEnabled);
   };
 
@@ -238,7 +238,8 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       }
     },
     setZebraEnabled: (enabled) => {
-      zebraEnabled = enabled;
+      // 旧 API 互換：単語 zebra → 行 zebra として動かす
+      lineZebraEnabled = enabled;
       updateModifierClasses();
     },
     setLineHighlightEnabled: (enabled) => {

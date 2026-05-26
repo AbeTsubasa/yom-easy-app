@@ -154,8 +154,6 @@ export function initApp(): void {
       state.text = result.text;
       readingArea.setText(result.text);
       clearError();
-      // 単語境界 ON ならファイル読込後に zebra を反映
-      void refreshWordBoundary();
     } else {
       const message =
         result.reason === 'wrong-type'
@@ -182,45 +180,23 @@ export function initApp(): void {
     initialText: state.text,
     onTextChange: (text) => {
       state.text = text;
-      // テキスト変更時、単語境界 ON なら kuromoji で再 tokenize して preview を更新
-      void refreshWordBoundary();
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
     },
   });
 
-  // 初期 modifier 反映（zebra / line-highlight）
-  readingArea.setZebraEnabled(state.settings.wordBoundaryHighlight);
+  // 初期 modifier 反映：
+  // - setZebraEnabled は内部で「行 zebra」モードを切り替える（API 名は旧名のまま）
+  // - 行ホバー強調は v1.0 では UI から削除済 → false 固定
+  readingArea.setZebraEnabled(state.settings.lineZebra);
   readingArea.setLineHighlightEnabled(state.settings.lineHighlight);
 
   /**
-   * preview を kuromoji span で再描画するためのトークン保持。
-   * wordBoundary 表示と TTS 同期ハイライトで共有する。
+   * TTS 同期ハイライトのために kuromoji で tokenize した結果を保持。
+   * lineZebra は CSS のみで動くので kuromoji 不要。
    */
   let currentTokens: Token[] | null = null;
-
-  /**
-   * 単語境界マーカー用に kuromoji で tokenize し、preview を span 描画に切り替える。
-   * - wordBoundary OFF or text 空 → 通常描画に戻す
-   * - kuromoji 初期化失敗時はサイレントに通常描画（致命的エラーは avoid）
-   */
-  const refreshWordBoundary = async (): Promise<void> => {
-    if (!state.settings.wordBoundaryHighlight || !state.text.trim()) {
-      currentTokens = null;
-      readingArea.setHighlightTokens(null);
-      return;
-    }
-    try {
-      await ensureTokenizer();
-      currentTokens = tokenize(state.text);
-      readingArea.setHighlightTokens(currentTokens);
-    } catch (e) {
-      console.error('[app] word boundary tokenize failed:', e);
-      currentTokens = null;
-      readingArea.setHighlightTokens(null);
-    }
-  };
 
   // --- Settings components ---
   const fontPicker = createFontPicker({
@@ -296,9 +272,8 @@ export function initApp(): void {
 
   /**
    * 「読み上げる」を押した時の処理。
-   * - TTS 同期ハイライト ON 時：必要なら kuromoji 初期化＋tokenize → 同期ハイライト準備
-   * - 単語境界ハイライト ON 時：既に refreshWordBoundary で tokens がある
-   * - どちらも OFF 時：tokenize を省略して即 play（軽快）
+   * - TTS 同期ハイライト ON 時：kuromoji 初期化＋tokenize → 同期ハイライト準備
+   * - OFF 時（=v1.0 デフォルト）：tokenize を省略して即 play
    */
   const startReading = async (): Promise<void> => {
     const text = state.text;
@@ -310,9 +285,7 @@ export function initApp(): void {
       showError(copy.tts.unsupported);
       return;
     }
-    const needsTokens =
-      state.settings.ttsSyncHighlight || state.settings.wordBoundaryHighlight;
-    if (needsTokens && !currentTokens) {
+    if (state.settings.ttsSyncHighlight && !currentTokens) {
       if (!isTokenizerReady()) {
         ttsControlsRef?.syncToState('loading');
       }
@@ -393,24 +366,11 @@ export function initApp(): void {
 
   const highlightControls = createHighlightControls({
     initial: {
-      wordBoundary: state.settings.wordBoundaryHighlight,
-      lineHighlight: state.settings.lineHighlight,
-      ttsSync: state.settings.ttsSyncHighlight,
+      lineZebra: state.settings.lineZebra,
     },
-    onWordBoundaryChange: (enabled) => {
-      state.settings.wordBoundaryHighlight = enabled;
+    onLineZebraChange: (enabled) => {
+      state.settings.lineZebra = enabled;
       readingArea.setZebraEnabled(enabled);
-      void refreshWordBoundary();
-      persistSettings();
-    },
-    onLineHighlightChange: (enabled) => {
-      state.settings.lineHighlight = enabled;
-      readingArea.setLineHighlightEnabled(enabled);
-      persistSettings();
-    },
-    onTtsSyncChange: (enabled) => {
-      state.settings.ttsSyncHighlight = enabled;
-      if (!enabled) readingArea.setHighlightIndex(-1);
       persistSettings();
     },
   });

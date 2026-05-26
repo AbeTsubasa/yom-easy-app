@@ -59,11 +59,20 @@ export interface Settings {
   ttsRate: number;
   /** 選択した音声の voiceURI。null は端末の標準（最初の日本語音声） */
   ttsVoiceURI: string | null;
-  /** 単語境界マーカー（kuromoji 分割で各単語を zebra 表示） */
+  /**
+   * 行ごとの色分け（段落 <p> 単位で奇数番目に薄い背景）。
+   * 言語非依存、CSS のみで動作、ディスレクシア視認性研究で支持あり。
+   */
+  lineZebra: boolean;
+  /**
+   * 単語境界マーカー（kuromoji 分割）。
+   * 形態素分割は「単語」と一致せず、英語にも対応しないため v1.0 では UI から外し、
+   * デフォルト false。Settings 型からは外さず将来の再評価に備える。
+   */
   wordBoundaryHighlight: boolean;
-  /** 行ハイライト（マウスホバー/クリックで現在の段落を強調） */
+  /** 行ハイライト（マウスホバー）。v1.0 では UI から外し、デフォルト false */
   lineHighlight: boolean;
-  /** 読み上げ同期ハイライト（onboundaryでの単語追従、ベストエフォート） */
+  /** 読み上げ同期ハイライト。onboundary 不安定のため v1.0 では UI から外し、デフォルト false */
   ttsSyncHighlight: boolean;
 }
 
@@ -83,7 +92,8 @@ export const DEFAULT_SETTINGS: Settings = {
   customText: null,
   ttsRate: 1.0,
   ttsVoiceURI: null,
-  wordBoundaryHighlight: true, // 最も安定 + 研究的に有効なので初期 ON
-  lineHighlight: true, // ホバー時のみ反応するので初期 ON でも邪魔にならない
-  ttsSyncHighlight: false, // 精度が不安定なので初期 OFF、欲しい人だけ ON
+  lineZebra: true, // 言語非依存・安定動作・研究支持あり。唯一のデフォルト ON ハイライト
+  wordBoundaryHighlight: false,
+  lineHighlight: false,
+  ttsSyncHighlight: false,
 };

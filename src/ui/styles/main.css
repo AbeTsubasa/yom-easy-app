@@ -318,24 +318,23 @@ body {
   margin: 0 -0.1em;
 }
 
-/* === Word boundary zebra (奇数番目の単語に薄い帯) ===
-   reading-area--zebra クラスが ON のときに kuromoji 分割された
-   各 token を交互に塗り分けて、単語のまとまりを視覚化する。 */
-.reading-area--zebra .reading-area__token:nth-of-type(odd) {
+/* === Line zebra (段落単位で奇数番目に薄い背景) ===
+   reading-area--line-zebra が ON のとき、preview の各段落（<p>）を
+   交互に塗り分けて「行のまとまり」を視覚化する。
+   - CSS のみで動作（kuromoji 不要）、言語非依存
+   - 読み上げ時は TTS 同期ハイライトと共存できるよう、薄い色味 */
+.reading-area--line-zebra .reading-area__preview p {
+  border-radius: 0.3rem;
+  padding: 0.4em 0.6em;
+  margin-left: -0.6em;
+  margin-right: -0.6em;
+}
+
+.reading-area--line-zebra .reading-area__preview p:nth-of-type(odd) {
   background-color: rgba(34, 34, 34, 0.05);
-  border-radius: 0.15rem;
-  padding: 0.02em 0.05em;
-  margin: 0 -0.05em;
 }
 
-/* zebra と TTS 同期ハイライトが両方付いた場合は、ハイライト優先 */
-.reading-area--zebra .reading-area__token--highlighted {
-  background-color: rgba(255, 215, 90, 0.55);
-}
-
-/* === Line highlight (段落 hover) ===
-   reading-area--line-highlight が ON のときに preview の <p> を
-   ホバーすると控えめな帯で強調。今読んでいる場所を見失わない補助。 */
+/* === Line highlight (段落 hover)（v1.0 では UI 削除、CSSは残す） === */
 .reading-area--line-highlight .reading-area__preview p {
   border-radius: 0.3rem;
   padding: 0.15em 0.3em;

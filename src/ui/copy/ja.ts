@@ -120,17 +120,10 @@ export const copy = {
     ttsVoiceLabel: '声',
     ttsVoiceDefault: 'おまかせ（端末の標準）',
     highlightHeading: 'ハイライト',
-    highlightHint:
-      '読みやすさを助ける3つの目印を、組み合わせて使えます。合うものだけ ON にしてください。',
-    wordBoundaryLabel: '単語の区切り',
-    wordBoundaryHint:
-      '日本語を単語ごとに分けて、薄い色で交互に塗ります。「どこまでが一つのまとまりか」が見えやすくなります。',
-    lineHighlightLabel: '行ハイライト',
-    lineHighlightHint:
-      'マウスを乗せた行を強調します。今どこを読んでいるかを見失いにくくなります。',
-    ttsSyncHighlightLabel: '読み上げに合わせて単語をハイライト',
-    ttsSyncHighlightHint:
-      'お使いのブラウザによってはタイミングがずれたり動かなかったりします。「動いたらラッキー」くらいでお試しください。',
+    highlightHint: '読みやすさを助ける目印です。合うものを ON にしてください。',
+    lineZebraLabel: '行ごとの色分け',
+    lineZebraHint:
+      '段落ごとに薄い色で交互に塗ります。読んでいる場所を見失いにくくなります。日本語でも英語でも同じように動きます。',
   },
   onboarding: {
     welcome: 'ようこそ。',

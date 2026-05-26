@@ -56,6 +56,10 @@ function safeRemove(key: string): void {
  * 設定を localStorage から読み込む。
  * 失敗（JSON パースエラー、storage 不能等）の場合は null を返す。
  * 部分的に壊れた値は無視し、デフォルトとマージして返す。
+ *
+ * マイグレーション：v1 から v2 への移行で、単語境界/行hover/TTS同期は
+ * 一旦すべて OFF に強制リセット（既存ユーザーが古い不正確なハイライトを
+ * 引きずらないように）。lineZebra は未設定なら DEFAULT(true) で初期化される。
  */
 export function loadSettings(): Settings | null {
   const raw = safeGet(STORAGE_KEYS.settings);
@@ -63,8 +67,12 @@ export function loadSettings(): Settings | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
-    // 不足キーがあっても DEFAULT で補う（前方互換）
-    return { ...DEFAULT_SETTINGS, ...(parsed as Partial<Settings>) };
+    const merged: Settings = { ...DEFAULT_SETTINGS, ...(parsed as Partial<Settings>) };
+    // v1 → v2 マイグレーション：旧3ハイライトは強制 OFF
+    merged.wordBoundaryHighlight = false;
+    merged.lineHighlight = false;
+    merged.ttsSyncHighlight = false;
+    return merged;
   } catch {
     return null;
   }

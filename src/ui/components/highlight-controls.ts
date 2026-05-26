@@ -2,73 +2,48 @@ import { copy } from '../copy/ja';
 
 export interface HighlightControlsOptions {
   initial: {
-    wordBoundary: boolean;
-    lineHighlight: boolean;
-    ttsSync: boolean;
+    lineZebra: boolean;
   };
-  onWordBoundaryChange: (enabled: boolean) => void;
-  onLineHighlightChange: (enabled: boolean) => void;
-  onTtsSyncChange: (enabled: boolean) => void;
+  onLineZebraChange: (enabled: boolean) => void;
 }
 
 export interface HighlightControlsController {
   element: HTMLElement;
-  setWordBoundary: (enabled: boolean) => void;
-  setLineHighlight: (enabled: boolean) => void;
-  setTtsSync: (enabled: boolean) => void;
+  setLineZebra: (enabled: boolean) => void;
 }
 
 /**
- * ハイライト3種の ON/OFF をまとめた設定セクション。
- * - 単語境界（zebra）
- * - 行ハイライト
- * - 読み上げ同期ハイライト（ベストエフォート）
+ * ハイライト設定セクション。v1.0 では「行ごとの色分け」1つだけ。
  *
- * 設計方針：
- * - 各設定はチェックボックスベース（toggle スイッチではなく、操作が明快な checkbox）
- * - 各設定の下に1〜2行の hint で「何が起きるか」を伝える
- * - 読み上げ同期だけは「動かないこともあります」と正直に書く
+ * 設計判断：
+ * - 単語境界（kuromoji）ハイライトは形態素分割が「単語」と一致せず、
+ *   英語にも対応できなかったため UI から削除
+ * - 行ハイライト（hover）と TTS 同期ハイライトも、現状では十分な精度・
+ *   一貫性を提供できないため UI から削除（Settings 型には残し、将来の
+ *   オプション再有効化に備える）
+ * - 残った「行ごとの色分け」は言語非依存・CSS のみで動作・研究で支持あり
  */
 export function createHighlightControls(opts: HighlightControlsOptions): HighlightControlsController {
   const wrapper = document.createElement('div');
   wrapper.className = 'highlight-controls';
 
-  const hint = document.createElement('p');
-  hint.className = 'highlight-controls__intro';
-  hint.textContent = copy.settings.highlightHint;
-  wrapper.appendChild(hint);
+  const intro = document.createElement('p');
+  intro.className = 'highlight-controls__intro';
+  intro.textContent = copy.settings.highlightHint;
+  wrapper.appendChild(intro);
 
-  const wordField = makeField({
-    id: 'toggle-word-boundary',
-    label: copy.settings.wordBoundaryLabel,
-    hint: copy.settings.wordBoundaryHint,
-    initial: opts.initial.wordBoundary,
-    onChange: opts.onWordBoundaryChange,
+  const zebraField = makeField({
+    id: 'toggle-line-zebra',
+    label: copy.settings.lineZebraLabel,
+    hint: copy.settings.lineZebraHint,
+    initial: opts.initial.lineZebra,
+    onChange: opts.onLineZebraChange,
   });
-  const lineField = makeField({
-    id: 'toggle-line-highlight',
-    label: copy.settings.lineHighlightLabel,
-    hint: copy.settings.lineHighlightHint,
-    initial: opts.initial.lineHighlight,
-    onChange: opts.onLineHighlightChange,
-  });
-  const ttsSyncField = makeField({
-    id: 'toggle-tts-sync',
-    label: copy.settings.ttsSyncHighlightLabel,
-    hint: copy.settings.ttsSyncHighlightHint,
-    initial: opts.initial.ttsSync,
-    onChange: opts.onTtsSyncChange,
-  });
-
-  wrapper.appendChild(wordField.element);
-  wrapper.appendChild(lineField.element);
-  wrapper.appendChild(ttsSyncField.element);
+  wrapper.appendChild(zebraField.element);
 
   return {
     element: wrapper,
-    setWordBoundary: wordField.setChecked,
-    setLineHighlight: lineField.setChecked,
-    setTtsSync: ttsSyncField.setChecked,
+    setLineZebra: zebraField.setChecked,
   };
 }
 
