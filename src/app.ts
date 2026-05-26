@@ -19,8 +19,10 @@ import { createTtsSettings } from './ui/components/tts-settings';
 import { createHighlightControls } from './ui/components/highlight-controls';
 import { createCameraInput } from './ui/components/camera-input';
 import { createImagePreview, type ImagePreviewController } from './ui/components/image-preview';
+import { createRubyControls } from './ui/components/ruby-controls';
 import { loadImageFile, disposeImage } from './modules/image-loader';
 import { recognizeImage, terminateOcr } from './modules/ocr';
+import { addFurigana } from './modules/ruby';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -168,6 +170,11 @@ export function initApp(): void {
       state.text = result.text;
       readingArea.setText(result.text);
       clearError();
+      // ふりがな ON ならファイル読込後に再生成
+      if (state.settings.rubyEnabled) {
+        lastRubyText = null;
+        void refreshRuby();
+      }
     } else {
       const message =
         result.reason === 'wrong-type'
@@ -299,11 +306,49 @@ export function initApp(): void {
     initialText: state.text,
     onTextChange: (text) => {
       state.text = text;
+      if (state.settings.rubyEnabled) debouncedRefreshRuby();
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
     },
   });
+
+  // --- Ruby (furigana) generation ---
+  /** 最後に ruby を生成したテキスト。同じテキストの再生成を省略 */
+  let lastRubyText: string | null = null;
+
+  const refreshRuby = async (): Promise<void> => {
+    if (!state.settings.rubyEnabled) {
+      readingArea.setRubyHtml(null);
+      lastRubyText = null;
+      return;
+    }
+    const text = state.text;
+    if (!text.trim()) {
+      readingArea.setRubyHtml(null);
+      lastRubyText = null;
+      return;
+    }
+    if (text === lastRubyText) return;
+    try {
+      const paragraphs = text.split(/\n{2,}/);
+      const rubyParas = await Promise.all(paragraphs.map((p) => addFurigana(p)));
+      // 生成中にテキストが変わっていたら破棄（race condition 対策）
+      if (text !== state.text) return;
+      const html = rubyParas.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+      lastRubyText = text;
+      readingArea.setRubyHtml(html);
+    } catch (e) {
+      console.error('[app] ruby generation failed:', e);
+      showError(copy.settings.rubyError);
+      state.settings.rubyEnabled = false;
+      rubyControls.setEnabled(false);
+      persistSettings();
+    }
+  };
+  const debouncedRefreshRuby = debounce(() => {
+    void refreshRuby();
+  }, 350);
 
   // 初期 modifier 反映：
   // - setLineMode で off/zebra/flat を切り替え
@@ -500,6 +545,20 @@ export function initApp(): void {
     },
   });
 
+  const rubyControls = createRubyControls({
+    initial: state.settings.rubyEnabled,
+    onChange: (enabled) => {
+      state.settings.rubyEnabled = enabled;
+      persistSettings();
+      if (enabled) {
+        void refreshRuby();
+      } else {
+        readingArea.setRubyHtml(null);
+        lastRubyText = null;
+      }
+    },
+  });
+
   const settingsPanel = createSettingsPanel({
     sections: [
       { title: copy.settings.fontHeading, body: fontPicker.element },
@@ -507,6 +566,7 @@ export function initApp(): void {
       { title: copy.settings.colorHeading, body: colorControls.element },
       { title: copy.settings.ttsHeading, body: ttsSettings.element },
       { title: copy.settings.highlightHeading, body: highlightControls.element },
+      { title: copy.settings.rubyHeading, body: rubyControls.element },
     ],
     // initialOpenIndex は指定しない → 最初は全て閉じる
   });

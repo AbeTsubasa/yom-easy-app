@@ -513,6 +513,25 @@ body {
   background-clip: content-box;
 }
 
+/* === Ruby (furigana) === ruby は preview 内の <ruby><rt> に対して */
+.reading-area__preview ruby {
+  ruby-position: over;
+}
+
+.reading-area__preview rt {
+  font-size: 0.55em;
+  color: var(--reading-text);
+  opacity: 0.72;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  font-weight: normal;
+}
+
+/* ruby があると行間が ruby 分かさばるので、ruby ON 時の段落間隔を確保 */
+.reading-area__preview ruby + ruby {
+  margin-left: 0;
+}
+
 /* === Line highlight (段落 hover)（v1.0 では UI 削除、CSSは残す） === */
 .reading-area--line-highlight .reading-area__preview p {
   border-radius: 0.3rem;
@@ -831,6 +850,41 @@ body {
   font-size: 0.78rem;
   color: var(--muted-color);
   line-height: 1.4;
+}
+
+/* ==========================================================================
+   Ruby controls (settings-panel の親「ふりがな」内)
+   ========================================================================== */
+.ruby-controls__intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.ruby-controls__field {
+  margin-bottom: 0.5rem;
+}
+
+.ruby-controls__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.ruby-controls__checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin: 0;
+}
+
+.ruby-controls__toggle-label {
+  font-weight: 500;
 }
 
 /* ==========================================================================

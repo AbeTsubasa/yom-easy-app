@@ -29,6 +29,12 @@ export interface ReadingAreaController {
    */
   setHighlightIndex: (index: number) => void;
   /**
+   * ふりがな（ルビ）HTML を preview にセット。
+   * null で通常描画に戻す。文字列は kuroshiro が生成した <ruby>...</ruby> を
+   * 段落単位で <p> で囲んだもの（呼び出し側で組み立てる）。
+   */
+  setRubyHtml: (html: string | null) => void;
+  /**
    * 行モードの設定（off / zebra / flat）。
    * v1.0 の主要ハイライト機能。CSS のみで動作するので軽量。
    */
@@ -127,6 +133,8 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   let editing = false;
   /** ハイライト対応モードのトークン配列。null = 通常描画 */
   let highlightTokens: Token[] | null = null;
+  /** ふりがなモードの HTML（既に <p><ruby>...</ruby></p> 構造）。null = 通常描画 */
+  let rubyHtml: string | null = null;
   let currentLineMode: LineMode = 'off';
   let lineHighlightEnabled = false;
 
@@ -153,15 +161,20 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       preview.innerHTML = '';
       return;
     }
+    // 優先順：ふりがな HTML > kuromoji span > 通常段落描画
+    if (rubyHtml) {
+      preview.innerHTML = rubyHtml;
+      return;
+    }
     if (highlightTokens) {
       preview.innerHTML = renderTextWithTokens(currentText, highlightTokens);
-    } else {
-      const html = currentText
-        .split(/\n{2,}/)
-        .map((p) => `<p>${nl2br(escapeHtml(p))}</p>`)
-        .join('');
-      preview.innerHTML = html;
+      return;
     }
+    const html = currentText
+      .split(/\n{2,}/)
+      .map((p) => `<p>${nl2br(escapeHtml(p))}</p>`)
+      .join('');
+    preview.innerHTML = html;
   };
 
   const updateCharCount = (): void => {
@@ -221,6 +234,7 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       textarea.value = text;
       editing = false;
       highlightTokens = null; // テキスト差し替え時にハイライト解除
+      rubyHtml = null; // ふりがなも一旦解除（app.ts が必要なら再生成）
       renderState();
     },
     setEditing,
@@ -243,6 +257,10 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
         // 画面外に出ていたら中央付近にスクロール
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
+    },
+    setRubyHtml: (html) => {
+      rubyHtml = html;
+      if (!editing) renderPreview();
     },
     setLineMode: (mode) => {
       currentLineMode = mode;

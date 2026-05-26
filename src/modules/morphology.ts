@@ -16,6 +16,8 @@ export interface Token {
   charStart: number;
   charEnd: number;
   pos: string;
+  /** 読み（カタカナ）。kuromoji 辞書ベース。未知語は surface へフォールバック */
+  reading: string;
 }
 
 let cachedTokenizer: Tokenizer<IpadicFeatures> | null = null;
@@ -90,6 +92,7 @@ export function tokenize(text: string): Token[] {
     charStart: t.word_position - 1,
     charEnd: t.word_position - 1 + t.surface_form.length,
     pos: t.pos,
+    reading: t.reading ?? t.surface_form,
   }));
 }
 

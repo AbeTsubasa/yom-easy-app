@@ -159,6 +159,12 @@ export const copy = {
     highlightColorHeading: 'ハイライトの色',
     highlightColorHint:
       '色は個人差がとても大きいことが研究で分かっています。「正解の色」は決まっていません。合うものを選んでください。',
+    rubyHeading: 'ふりがな',
+    rubyHint:
+      '漢字に小さなふりがなを付けます。読みづらい漢字も読める助けになります。初めて ON にすると、辞書の準備に少し時間がかかります。',
+    rubyEnableLabel: 'ふりがなを付ける',
+    rubyPreparing: 'ふりがなの準備中…',
+    rubyError: 'ふりがなの準備に少し問題が起きたみたい。もう一度試してください。',
   },
   onboarding: {
     welcome: 'ようこそ。',
