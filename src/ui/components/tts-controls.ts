@@ -1,25 +1,31 @@
 import { copy } from '../copy/ja';
-import type { TtsController, TtsState } from '../../modules/tts';
+import type { TtsState } from '../../modules/tts';
+
+/**
+ * TTS コントロールが表示する視覚状態。
+ * tts モジュールの TtsState (idle/playing/paused) に、UI 専用の 'loading' を加える。
+ * 'loading' は kuromoji 初期化など、再生開始までの待ち時間を表す。
+ */
+export type TtsViewState = TtsState | 'loading';
 
 export interface TtsControlsOptions {
-  /** 読み上げ対象テキストを取得する getter（呼び出し時の最新を返す） */
-  getText: () => string;
-  /** 共通の TtsController（app.ts で1つだけ作る） */
-  tts: TtsController;
-  /** 文章が空などで再生できない時に呼ぶ（外側でメッセージ表示） */
-  onCannotPlay?: (reason: 'empty' | 'unsupported' | 'no-voice') => void;
+  initialState: TtsViewState;
+  onPlay: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
 }
 
 export interface TtsControlsController {
   element: HTMLElement;
-  /** state 変化時に外から表示更新するためのフック（通常は内部で完結） */
-  syncToState: (state: TtsState) => void;
+  /** 外から状態に応じてボタン表示を更新 */
+  syncToState: (state: TtsViewState) => void;
 }
 
 /**
  * 読み上げの再生／一時停止／再開／停止ボタン。
- * state に応じて「再生」or「一時停止/再開＋停止」に表示を切替。
- * reading-area の toolbar に挿入する想定。
+ * state に応じてボタンを差し替える。
+ * 再生フロー（tokenize + play）は app.ts に委譲し、ここはイベントを発火するだけ。
  */
 export function createTtsControls(opts: TtsControlsOptions): TtsControlsController {
   const wrapper = document.createElement('div');
@@ -31,39 +37,36 @@ export function createTtsControls(opts: TtsControlsOptions): TtsControlsControll
   const pauseButton = makeButton('tts-controls__primary', copy.tts.pause, copy.tts.pauseAria);
   const resumeButton = makeButton('tts-controls__primary', copy.tts.resume, copy.tts.resumeAria);
   const stopButton = makeButton('tts-controls__secondary', copy.tts.stop, copy.tts.stopAria);
+  const loadingButton = makeButton(
+    'tts-controls__primary',
+    copy.tts.preparing,
+    copy.tts.preparingAria,
+  );
+  loadingButton.disabled = true;
 
-  playButton.addEventListener('click', () => {
-    const text = opts.getText();
-    if (!text.trim()) {
-      opts.onCannotPlay?.('empty');
-      return;
-    }
-    if (!opts.tts.isSupported()) {
-      opts.onCannotPlay?.('unsupported');
-      return;
-    }
-    opts.tts.play(text);
-  });
-  pauseButton.addEventListener('click', () => opts.tts.pause());
-  resumeButton.addEventListener('click', () => opts.tts.resume());
-  stopButton.addEventListener('click', () => opts.tts.stop());
+  playButton.addEventListener('click', () => opts.onPlay());
+  pauseButton.addEventListener('click', () => opts.onPause());
+  resumeButton.addEventListener('click', () => opts.onResume());
+  stopButton.addEventListener('click', () => opts.onStop());
 
-  const applyState = (state: TtsState): void => {
-    // ボタンを全部消してから、状態に応じて必要なものだけ追加
+  const applyState = (state: TtsViewState): void => {
     wrapper.innerHTML = '';
+    if (state === 'loading') {
+      wrapper.appendChild(loadingButton);
+      return;
+    }
     if (state === 'idle') {
       wrapper.appendChild(playButton);
     } else if (state === 'playing') {
       wrapper.appendChild(pauseButton);
       wrapper.appendChild(stopButton);
     } else {
-      // paused
       wrapper.appendChild(resumeButton);
       wrapper.appendChild(stopButton);
     }
   };
 
-  applyState(opts.tts.state());
+  applyState(opts.initialState);
 
   return {
     element: wrapper,

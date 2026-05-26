@@ -42,10 +42,13 @@ export const copy = {
     resumeAria: '読み上げを再開',
     stop: '⏹ 停止',
     stopAria: '読み上げを停止',
+    preparing: '準備中…',
+    preparingAria: '読み上げの準備中です',
     unsupported: 'お使いのブラウザは、まだ読み上げ機能に対応していないみたい。',
     noJapaneseVoice:
       'お使いの端末には、日本語の音声が見つからないみたい。OSの設定で日本語音声を追加できる場合があります。',
     nothingToRead: '読み上げる文章が、まだありません。',
+    preparingError: '読み上げの準備中に少し問題が起きたみたい。もう一度試してみてください。',
   },
   reader: {
     textareaLabel: '読みたい文章',

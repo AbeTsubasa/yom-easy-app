@@ -287,6 +287,22 @@ body {
   margin: 0 0 var(--reading-paragraph-spacing);
 }
 
+/* 読み上げ中の単語ハイライト（Sprint 2 Day 3-4）
+   控えめな黄色マーカー風、reading-bg と reading-text に依存しないので
+   どんなテーマでも視認できる */
+.reading-area__token {
+  /* 通常時は描画影響なし */
+  border-radius: 0.2rem;
+  transition: background-color 80ms ease;
+}
+
+.reading-area__token--highlighted {
+  background-color: rgba(255, 215, 90, 0.55);
+  /* 文字色は reading-text のまま：背景だけで強調する（プライバシー色テーマ依存しない） */
+  padding: 0.05em 0.1em;
+  margin: 0 -0.1em;
+}
+
 .reading-area__preview p:last-child {
   margin-bottom: 0;
 }

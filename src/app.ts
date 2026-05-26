@@ -20,6 +20,13 @@ import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
 import { createTts } from './modules/tts';
 import {
+  ensureTokenizer,
+  tokenize,
+  findTokenIndex,
+  isTokenizerReady,
+  type Token,
+} from './modules/morphology';
+import {
   loadSettings,
   saveSettings,
   isOnboardingDone,
@@ -202,11 +209,24 @@ export function initApp(): void {
   // --- TTS (Web Speech API) ---
   // ttsControls は後で代入するため、let で受けて onStateChange 内では遅延参照
   let ttsControlsRef: TtsControlsController | null = null;
+  /** 現在再生中のトークン列。idle に戻ったらクリア */
+  let currentTokens: Token[] | null = null;
+
   const tts = createTts({
     rate: state.settings.ttsRate,
     voiceURI: state.settings.ttsVoiceURI,
     onStateChange: (ttsState) => {
       ttsControlsRef?.syncToState(ttsState);
+      if (ttsState === 'idle') {
+        // 読み上げ終了：ハイライトを解除し、preview を通常描画に戻す
+        currentTokens = null;
+        readingArea.setHighlightTokens(null);
+      }
+    },
+    onBoundary: (ev) => {
+      if (!currentTokens) return;
+      const idx = findTokenIndex(currentTokens, ev.charIndex);
+      if (idx >= 0) readingArea.setHighlightIndex(idx);
     },
     onError: (reason) => {
       if (reason === 'unsupported') showError(copy.tts.unsupported);
@@ -214,14 +234,41 @@ export function initApp(): void {
     },
   });
 
+  /** 「読み上げる」を押した時の処理：tokenize → preview に span 描画 → TTS 再生 */
+  const startReading = async (): Promise<void> => {
+    const text = state.text;
+    if (!text.trim()) {
+      showError(copy.tts.nothingToRead);
+      return;
+    }
+    if (!tts.isSupported()) {
+      showError(copy.tts.unsupported);
+      return;
+    }
+    // kuromoji 未初期化なら準備中表示
+    if (!isTokenizerReady()) {
+      ttsControlsRef?.syncToState('loading');
+    }
+    try {
+      await ensureTokenizer();
+      currentTokens = tokenize(text);
+      readingArea.setHighlightTokens(currentTokens);
+      tts.play(text);
+    } catch (e) {
+      console.error('TTS preparation failed:', e);
+      showError(copy.tts.preparingError);
+      ttsControlsRef?.syncToState('idle');
+    }
+  };
+
   const ttsControls = createTtsControls({
-    getText: () => state.text,
-    tts,
-    onCannotPlay: (reason) => {
-      if (reason === 'empty') showError(copy.tts.nothingToRead);
-      else if (reason === 'unsupported') showError(copy.tts.unsupported);
-      else if (reason === 'no-voice') showError(copy.tts.noJapaneseVoice);
+    initialState: tts.state(),
+    onPlay: () => {
+      void startReading();
     },
+    onPause: () => tts.pause(),
+    onResume: () => tts.resume(),
+    onStop: () => tts.stop(),
   });
   ttsControlsRef = ttsControls;
 

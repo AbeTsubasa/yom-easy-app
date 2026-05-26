@@ -1,4 +1,5 @@
 import { copy } from '../copy/ja';
+import type { Token } from '../../modules/morphology';
 
 export interface ReadingAreaOptions {
   initialText: string;
@@ -15,6 +16,16 @@ export interface ReadingAreaController {
   /** 編集モード（textarea 表示）に入る / 抜ける */
   setEditing: (editing: boolean) => void;
   focusTextarea: () => void;
+  /**
+   * ハイライト対応モードに切り替える。
+   * tokens を渡すと preview を span 分割で再描画、null で通常描画に戻す。
+   */
+  setHighlightTokens: (tokens: Token[] | null) => void;
+  /**
+   * 現在ハイライトする token のインデックス。-1 でハイライト解除。
+   * setHighlightTokens で span 描画している必要がある。
+   */
+  setHighlightIndex: (index: number) => void;
 }
 
 /**
@@ -23,11 +34,9 @@ export interface ReadingAreaController {
  * - read:  テキストあり、preview 表示、「編集する」ボタン
  * - edit:  textarea 表示、「読みに戻る」ボタン
  *
- * 設計方針：
- * - preview をデフォルトに（設定変更の効果を即座に視認できる）
- * - 編集は明示的なアクションでのみ
- * - innerHTML を使う preview は必ず escapeHtml を通す
- * - aria-live=polite で読みモードの内容変化を SR に通知
+ * Sprint 2 Day 3-4 で、ハイライト対応モードを追加：
+ * - setHighlightTokens(tokens) で preview を <span> 分割描画
+ * - setHighlightIndex(i) で該当 span にハイライトクラス付与＋scrollIntoView
  */
 export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaController {
   const wrapper = document.createElement('section');
@@ -104,8 +113,9 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
 
   // --- State ---
   let currentText = opts.initialText;
-  /** 編集モード（textarea 表示）。初期は常に false（空 → empty state、非空 → preview） */
   let editing = false;
+  /** ハイライト対応モードのトークン配列。null = 通常描画 */
+  let highlightTokens: Token[] | null = null;
 
   const renderEditToggle = (): void => {
     if (editing) {
@@ -124,11 +134,15 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       preview.innerHTML = '';
       return;
     }
-    const html = currentText
-      .split(/\n{2,}/)
-      .map((p) => `<p>${nl2br(escapeHtml(p))}</p>`)
-      .join('');
-    preview.innerHTML = html;
+    if (highlightTokens) {
+      preview.innerHTML = renderTextWithTokens(currentText, highlightTokens);
+    } else {
+      const html = currentText
+        .split(/\n{2,}/)
+        .map((p) => `<p>${nl2br(escapeHtml(p))}</p>`)
+        .join('');
+      preview.innerHTML = html;
+    }
   };
 
   const updateCharCount = (): void => {
@@ -140,15 +154,10 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     const isEmpty = !currentText.trim();
     wrapper.dataset.state = isEmpty && !editing ? 'empty' : editing ? 'editing' : 'reading';
 
-    // empty state: テキストなし、編集中でもない
     emptyState.style.display = isEmpty && !editing ? '' : 'none';
-    // textarea: 編集中
     textarea.style.display = editing ? '' : 'none';
-    // preview: テキストあり、編集中でない
     preview.style.display = !editing && !isEmpty ? '' : 'none';
-    // toolbar: empty state でないときに表示
     toolbar.style.display = isEmpty && !editing ? 'none' : '';
-    // footer: empty state でないときに表示
     footer.style.display = isEmpty && !editing ? 'none' : '';
 
     renderEditToggle();
@@ -158,6 +167,10 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
 
   const setEditing = (next: boolean): void => {
     editing = next;
+    // 編集モードに入る時は、ハイライト状態をクリアする（読み上げ整合性のため）
+    if (next && highlightTokens) {
+      highlightTokens = null;
+    }
     renderState();
     if (next) {
       setTimeout(() => textarea.focus(), 0);
@@ -187,13 +200,52 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     setText: (text) => {
       currentText = text;
       textarea.value = text;
-      // ファイル読み込み完了などで text がセットされたら、自動的に read モードへ
       editing = false;
+      highlightTokens = null; // テキスト差し替え時にハイライト解除
       renderState();
     },
     setEditing,
     focusTextarea: () => textarea.focus(),
+    setHighlightTokens: (tokens) => {
+      highlightTokens = tokens;
+      if (!editing) renderPreview();
+    },
+    setHighlightIndex: (index) => {
+      // 旧ハイライトを解除
+      preview.querySelectorAll('.reading-area__token--highlighted').forEach((el) => {
+        el.classList.remove('reading-area__token--highlighted');
+      });
+      if (index < 0) return;
+      const el = preview.querySelector<HTMLElement>(
+        `.reading-area__token[data-i="${index}"]`,
+      );
+      if (el) {
+        el.classList.add('reading-area__token--highlighted');
+        // 画面外に出ていたら中央付近にスクロール
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    },
   };
+}
+
+/** text を tokens で span 分割しつつ、token に含まれない隙間（whitespace等）は plain で出力 */
+function renderTextWithTokens(text: string, tokens: Token[]): string {
+  if (tokens.length === 0) {
+    return `<p>${nl2br(escapeHtml(text))}</p>`;
+  }
+  let html = '';
+  let pos = 0;
+  tokens.forEach((t, i) => {
+    if (pos < t.charStart) {
+      html += nl2br(escapeHtml(text.slice(pos, t.charStart)));
+    }
+    html += `<span class="reading-area__token" data-i="${i}">${nl2br(escapeHtml(t.surface))}</span>`;
+    pos = t.charEnd;
+  });
+  if (pos < text.length) {
+    html += nl2br(escapeHtml(text.slice(pos)));
+  }
+  return `<p>${html}</p>`;
 }
 
 function escapeHtml(s: string): string {
