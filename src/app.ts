@@ -16,6 +16,9 @@ import { createOnboarding } from './ui/components/onboarding';
 import { createTtsControls, type TtsControlsController } from './ui/components/tts-controls';
 import { createTtsSettings } from './ui/components/tts-settings';
 import { createHighlightControls } from './ui/components/highlight-controls';
+import { createCameraInput } from './ui/components/camera-input';
+import { createImagePreview, type ImagePreviewController } from './ui/components/image-preview';
+import { loadImageFile, disposeImage } from './modules/image-loader';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -172,6 +175,57 @@ export function initApp(): void {
     },
   });
   const nativeFileInput = fileInput.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement | null;
+
+  // --- Camera / image preview (Sprint 5) ---
+  /** 表示中の image-preview モーダルと、それが掴んでいる ObjectURL の組 */
+  let currentImagePreview: {
+    controller: ImagePreviewController;
+    objectURL: string;
+  } | null = null;
+
+  const closeImagePreview = (): void => {
+    if (!currentImagePreview) return;
+    currentImagePreview.controller.element.remove();
+    disposeImage(currentImagePreview.objectURL);
+    currentImagePreview = null;
+  };
+
+  const openImagePreview = (file: File): void => {
+    // 既存の preview があれば先に閉じる
+    closeImagePreview();
+    const loaded = loadImageFile(file);
+    if (!loaded.ok) {
+      const message =
+        loaded.reason === 'wrong-type'
+          ? copy.errors.imageWrongType
+          : loaded.reason === 'too-large'
+            ? copy.errors.imageTooLarge
+            : copy.errors.imageUnreadable;
+      showError(message);
+      return;
+    }
+    const controller = createImagePreview({
+      objectURL: loaded.objectURL,
+      onRecognize: () => {
+        // Day 1-2 は OCR placeholder。Day 3-4 で Tesseract.js を統合
+        showError(copy.errors.ocrComingSoon);
+      },
+      onRetake: () => {
+        closeImagePreview();
+        nativeCameraInput?.click();
+      },
+      onClose: closeImagePreview,
+    });
+    currentImagePreview = { controller, objectURL: loaded.objectURL };
+    document.body.appendChild(controller.element);
+  };
+
+  const cameraInput = createCameraInput({
+    onImageSelected: openImagePreview,
+  });
+  const nativeCameraInput = cameraInput.querySelector(
     'input[type="file"]',
   ) as HTMLInputElement | null;
 
@@ -440,6 +494,7 @@ export function initApp(): void {
   const actionsBar = document.createElement('div');
   actionsBar.className = 'app-main__actions';
   actionsBar.appendChild(fileInput);
+  actionsBar.appendChild(cameraInput);
 
   readingColumn.appendChild(actionsBar);
   readingColumn.appendChild(errorRegion);

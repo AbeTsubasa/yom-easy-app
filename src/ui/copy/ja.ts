@@ -33,6 +33,14 @@ export const copy = {
     closeLabel: '✕',
     closeAria: '設定パネルを閉じる',
   },
+  imagePreview: {
+    title: '撮った写真',
+    imageAlt: '撮影した、または選んだ画像',
+    hint: 'この写真から文字を読み取ります。読み取れたら、編集エリアに入ります。間違いがあれば後から直せます。',
+    retake: '撮り直す',
+    recognize: '文字を読み取る',
+    recognizing: '読み取り中…',
+  },
   tts: {
     play: '🔊 読み上げる',
     playAria: 'テキストを読み上げる',
@@ -63,7 +71,8 @@ export const copy = {
     paste: 'テキストを貼り付ける',
     openFile: 'ファイルを開く',
     openFileAria: 'テキストファイル（.txt / .md）を開く',
-    capture: 'カメラで撮影',
+    capture: '📷 カメラで撮影',
+    captureAria: '写真を撮るか、画像ファイルを選ぶ',
     read: '読み上げる',
     pause: '一時停止',
     resume: '再開',
@@ -87,6 +96,11 @@ export const copy = {
     emptyText: '読みたい文章を貼り付けるか、ファイルを開いてください。',
     cameraDenied: 'カメラが使えないみたい。ファイルから選ぶこともできます。',
     ocrEmpty: '文字が見つからなかったみたい。明るいところで、もう一度撮ってみよう。',
+    imageUnreadable: 'この画像、うまく読み込めなかったみたい。別の写真で試してみよう。',
+    imageWrongType: '画像のかたちが、まだ対応していないみたい。JPEG か PNG だと開けます。',
+    imageTooLarge: '画像が少し大きすぎるみたい。もう一度撮るか、別の画像で試してみよう。',
+    ocrComingSoon:
+      '文字の読み取りは、もう少し準備中です。次の更新で使えるようになります。',
   },
   settings: {
     panelHeading: '読み方の設定',
