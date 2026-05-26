@@ -62,6 +62,12 @@ export const copy = {
       'これらのフォントは、合う方と合わない方がいます。研究では「全員に効く」とは言えていません。試してみて、合えば使う、くらいの気持ちで選んでください。',
     webFontPending:
       'OpenDyslexic / Dyslexie は、Day 7 で Web フォントを組み込みます。今は端末にあるフォントへフォールバックします。',
+    spacingHeading: '文字と行の間隔',
+    spacingHint: 'スライダーを動かすと、すぐに見え方が変わります。',
+    fontSizeLabel: '文字の大きさ',
+    letterSpacingLabel: '字の間（文字どうしの間隔）',
+    lineHeightLabel: '行の間（行と行の間隔）',
+    wordSpacingLabel: '語の間（単語どうしの間隔）',
   },
 } as const;
 

@@ -342,6 +342,69 @@ body {
   font-size: 1rem;
 }
 
+/* === Spacing controls === */
+.spacing-controls {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed var(--accent-color);
+}
+
+.spacing-controls__heading {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.spacing-controls__hint {
+  margin: 0 0 1.25rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+/* === Range control === */
+.range-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.1rem;
+}
+
+.range-control:last-child {
+  margin-bottom: 0;
+}
+
+.range-control__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.range-control__label {
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.range-control__value {
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.range-control__input {
+  width: 100%;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin: 0;
+}
+
+.range-control__input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 /* === Drop overlay === */
 .drop-overlay {
   position: fixed;

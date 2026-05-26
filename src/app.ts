@@ -11,6 +11,7 @@ import { createReadingArea } from './ui/components/reading-area';
 import { createFileInput } from './ui/components/file-input';
 import { createFontPicker } from './ui/components/font-picker';
 import { createSettingsPanel } from './ui/components/settings-panel';
+import { createSpacingControls } from './ui/components/spacing-controls';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 
@@ -34,7 +35,24 @@ export function initApp(): void {
   const applyFontFamily = (key: FontFamilyKey): void => {
     document.documentElement.style.setProperty('--font-family', FONT_MAP[key].stack);
   };
+  const applyFontSize = (px: number): void => {
+    document.documentElement.style.setProperty('--font-size', `${px}px`);
+  };
+  const applyLetterSpacing = (em: number): void => {
+    document.documentElement.style.setProperty('--letter-spacing', `${em}em`);
+  };
+  const applyLineHeight = (ratio: number): void => {
+    document.documentElement.style.setProperty('--line-height', String(ratio));
+  };
+  const applyWordSpacing = (em: number): void => {
+    document.documentElement.style.setProperty('--word-spacing', `${em}em`);
+  };
+
   applyFontFamily(state.settings.fontFamily);
+  applyFontSize(state.settings.fontSize);
+  applyLetterSpacing(state.settings.letterSpacing);
+  applyLineHeight(state.settings.lineHeight);
+  applyWordSpacing(state.settings.wordSpacing);
 
   // --- Error region ---
   const errorRegion = document.createElement('div');
@@ -117,8 +135,35 @@ export function initApp(): void {
     },
   });
 
+  const spacingControls = createSpacingControls({
+    initial: {
+      fontSize: state.settings.fontSize,
+      letterSpacing: state.settings.letterSpacing,
+      lineHeight: state.settings.lineHeight,
+      wordSpacing: state.settings.wordSpacing,
+    },
+    onChange: {
+      fontSize: (v) => {
+        state.settings.fontSize = v;
+        applyFontSize(v);
+      },
+      letterSpacing: (v) => {
+        state.settings.letterSpacing = v;
+        applyLetterSpacing(v);
+      },
+      lineHeight: (v) => {
+        state.settings.lineHeight = v;
+        applyLineHeight(v);
+      },
+      wordSpacing: (v) => {
+        state.settings.wordSpacing = v;
+        applyWordSpacing(v);
+      },
+    },
+  });
+
   const settingsPanel = createSettingsPanel({
-    children: [fontPicker.element],
+    children: [fontPicker.element, spacingControls.element],
   });
 
   // --- Layout ---
