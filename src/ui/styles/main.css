@@ -223,8 +223,10 @@ body {
 
 .reading-area__toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .reading-area__edit-toggle {
@@ -353,6 +355,86 @@ body {
   font-size: 0.85rem;
   color: var(--muted-color);
   font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   TTS controls (reading-area toolbar に挿入される再生コントロール)
+   ========================================================================== */
+.tts-controls {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tts-controls__button {
+  appearance: none;
+  border: 1px solid var(--border-color);
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  color: var(--text-color);
+}
+
+.tts-controls__primary {
+  background-color: var(--button-bg-active);
+  border-color: var(--border-color);
+  font-weight: 600;
+}
+
+.tts-controls__primary:hover {
+  background-color: var(--accent-color);
+}
+
+.tts-controls__secondary {
+  background-color: var(--bg-color);
+}
+
+.tts-controls__secondary:hover {
+  background-color: var(--button-bg);
+}
+
+/* ==========================================================================
+   TTS settings (settings-panel の親「読み上げ」内)
+   ========================================================================== */
+.tts-settings__hint {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.tts-settings__voice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 1rem;
+}
+
+.tts-settings__voice-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.tts-settings__voice-select {
+  appearance: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.4rem;
+  background-color: var(--bg-color);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.tts-settings__voice-select:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* ==========================================================================

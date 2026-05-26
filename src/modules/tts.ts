@@ -1,0 +1,212 @@
+/**
+ * Web Speech API (SpeechSynthesis) のラッパー。
+ *
+ * 設計方針：
+ * - state は内部的に管理し、UI からは play / pause / resume / stop の4つだけ
+ * - 状態変化は onStateChange コールバックで通知（UI が表示を切り替える）
+ * - 単語同期ハイライト用の onBoundary は Sprint 2 Day 3-4 で利用、今は通すだけ
+ * - 日本語音声がない端末でも throw せず、isSupported / hasJapaneseVoice で UI が判断
+ * - 失敗系のメッセージは EM_Tone-Principles に準拠（責めない・代替を示す）
+ */
+
+export type TtsState = 'idle' | 'playing' | 'paused';
+
+export interface BoundaryEvent {
+  charIndex: number;
+  charLength: number;
+}
+
+export interface TtsOptions {
+  /** 0.5 – 2.0、デフォルト 1.0 */
+  rate?: number;
+  /** voiceURI（getVoices で取得できるもの） */
+  voiceURI?: string | null;
+  /** 0.0 – 1.0 */
+  volume?: number;
+  /** 0.0 – 2.0 */
+  pitch?: number;
+  /** state 変化通知 */
+  onStateChange?: (state: TtsState) => void;
+  /** 単語境界の通知（Sprint 2 Day 3-4 で使用） */
+  onBoundary?: (event: BoundaryEvent) => void;
+  /** エラー（音声未対応など）の通知 */
+  onError?: (reason: 'unsupported' | 'no-voice' | 'unknown') => void;
+}
+
+export interface TtsController {
+  isSupported: () => boolean;
+  hasJapaneseVoice: () => boolean;
+  /** 日本語音声の一覧。voiceschanged 後に更新される */
+  getJapaneseVoices: () => SpeechSynthesisVoice[];
+  /** voiceschanged イベントが発生したら通知（音声リスト初期化用） */
+  onVoicesChanged: (cb: () => void) => () => void;
+  state: () => TtsState;
+  play: (text: string) => void;
+  pause: () => void;
+  resume: () => void;
+  stop: () => void;
+  /** 再生中の設定変更（次回 play から有効） */
+  updateOptions: (opts: Partial<TtsOptions>) => void;
+}
+
+/**
+ * TtsController のファクトリ。
+ * SpeechSynthesis が無いブラウザでは isSupported が false を返すだけで、
+ * play / pause などは no-op になる（throw しない）。
+ */
+export function createTts(initialOptions: TtsOptions = {}): TtsController {
+  const supported =
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    'SpeechSynthesisUtterance' in window;
+
+  let state: TtsState = 'idle';
+  let currentUtterance: SpeechSynthesisUtterance | null = null;
+  let options: TtsOptions = { ...initialOptions };
+  const voicesChangedListeners = new Set<() => void>();
+
+  if (supported) {
+    // voices は遅延ロードされることがあるので、変更通知を待つ
+    window.speechSynthesis.onvoiceschanged = () => {
+      voicesChangedListeners.forEach((cb) => cb());
+    };
+  }
+
+  const setState = (next: TtsState): void => {
+    if (state === next) return;
+    state = next;
+    options.onStateChange?.(next);
+  };
+
+  const getJapaneseVoices = (): SpeechSynthesisVoice[] => {
+    if (!supported) return [];
+    return window.speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('ja'));
+  };
+
+  const buildUtterance = (text: string): SpeechSynthesisUtterance => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP';
+    utterance.rate = options.rate ?? 1.0;
+    utterance.volume = options.volume ?? 1.0;
+    utterance.pitch = options.pitch ?? 1.0;
+
+    // voiceURI 指定があれば、それに一致する voice を選ぶ
+    if (options.voiceURI) {
+      const matched = window.speechSynthesis
+        .getVoices()
+        .find((v) => v.voiceURI === options.voiceURI);
+      if (matched) utterance.voice = matched;
+    } else {
+      // 未指定なら最初の日本語音声を選ぶ
+      const ja = getJapaneseVoices()[0];
+      if (ja) utterance.voice = ja;
+    }
+
+    utterance.onstart = () => setState('playing');
+    utterance.onend = () => {
+      setState('idle');
+      currentUtterance = null;
+    };
+    utterance.onerror = (e) => {
+      // 'interrupted' (= 別の発話で中断) はエラー扱いしない
+      if (e.error !== 'interrupted' && e.error !== 'canceled') {
+        options.onError?.('unknown');
+      }
+      setState('idle');
+      currentUtterance = null;
+    };
+    utterance.onboundary = (event) => {
+      if (event.name === 'word' || event.name === 'sentence') {
+        options.onBoundary?.({
+          charIndex: event.charIndex,
+          // charLength は Safari など一部ブラウザで undefined のことがある
+          charLength: event.charLength ?? 0,
+        });
+      }
+    };
+
+    return utterance;
+  };
+
+  const play = (text: string): void => {
+    if (!supported) {
+      options.onError?.('unsupported');
+      return;
+    }
+    if (!text.trim()) return;
+
+    if (getJapaneseVoices().length === 0) {
+      // 一旦 voiceschanged を待ってからもう一度試す
+      // それでも無ければ no-voice エラー
+      const tryPlay = (): void => {
+        if (getJapaneseVoices().length === 0) {
+          options.onError?.('no-voice');
+          return;
+        }
+        startSpeaking(text);
+      };
+      const off = onVoicesChangedOnce(tryPlay, 500);
+      // タイムアウト後に解除（既に試行済みなら何もしない）
+      window.setTimeout(off, 600);
+      return;
+    }
+
+    startSpeaking(text);
+  };
+
+  const startSpeaking = (text: string): void => {
+    window.speechSynthesis.cancel(); // 前のがあれば止める
+    currentUtterance = buildUtterance(text);
+    window.speechSynthesis.speak(currentUtterance);
+  };
+
+  const pause = (): void => {
+    if (!supported || state !== 'playing') return;
+    window.speechSynthesis.pause();
+    setState('paused');
+  };
+
+  const resume = (): void => {
+    if (!supported || state !== 'paused') return;
+    window.speechSynthesis.resume();
+    setState('playing');
+  };
+
+  const stop = (): void => {
+    if (!supported) return;
+    window.speechSynthesis.cancel();
+    currentUtterance = null;
+    setState('idle');
+  };
+
+  const onVoicesChanged = (cb: () => void): (() => void) => {
+    voicesChangedListeners.add(cb);
+    return () => voicesChangedListeners.delete(cb);
+  };
+
+  /** 一度きりの voiceschanged リスナー（タイムアウトつき） */
+  const onVoicesChangedOnce = (cb: () => void, _timeoutMs: number): (() => void) => {
+    let fired = false;
+    const wrapper = (): void => {
+      if (fired) return;
+      fired = true;
+      cb();
+    };
+    return onVoicesChanged(wrapper);
+  };
+
+  return {
+    isSupported: () => supported,
+    hasJapaneseVoice: () => getJapaneseVoices().length > 0,
+    getJapaneseVoices,
+    onVoicesChanged,
+    state: () => state,
+    play,
+    pause,
+    resume,
+    stop,
+    updateOptions: (next: Partial<TtsOptions>) => {
+      options = { ...options, ...next };
+    },
+  };
+}

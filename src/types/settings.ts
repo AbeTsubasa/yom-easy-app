@@ -55,6 +55,10 @@ export interface Settings {
    * null のときはプリセット（theme）の色を使う。
    */
   customText: string | null;
+  /** 読み上げ速度 0.5–2.0、デフォルト 1.0 */
+  ttsRate: number;
+  /** 選択した音声の voiceURI。null は端末の標準（最初の日本語音声） */
+  ttsVoiceURI: string | null;
 }
 
 /**
@@ -71,4 +75,6 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'cream',
   customBg: null,
   customText: null,
+  ttsRate: 1.0,
+  ttsVoiceURI: null,
 };

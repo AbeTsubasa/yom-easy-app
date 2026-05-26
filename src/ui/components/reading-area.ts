@@ -9,6 +9,8 @@ export interface ReadingAreaOptions {
 
 export interface ReadingAreaController {
   element: HTMLElement;
+  /** toolbar の DOM 参照。app.ts から TTS コントロール等を slot 的に挿入する */
+  toolbar: HTMLElement;
   setText: (text: string) => void;
   /** 編集モード（textarea 表示）に入る / 抜ける */
   setEditing: (editing: boolean) => void;
@@ -181,6 +183,7 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
 
   return {
     element: wrapper,
+    toolbar,
     setText: (text) => {
       currentText = text;
       textarea.value = text;

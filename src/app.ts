@@ -13,9 +13,12 @@ import { createSettingsPanel } from './ui/components/settings-panel';
 import { createSpacingControls } from './ui/components/spacing-controls';
 import { createColorControls } from './ui/components/color-controls';
 import { createOnboarding } from './ui/components/onboarding';
+import { createTtsControls, type TtsControlsController } from './ui/components/tts-controls';
+import { createTtsSettings } from './ui/components/tts-settings';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
+import { createTts } from './modules/tts';
 import {
   loadSettings,
   saveSettings,
@@ -196,6 +199,51 @@ export function initApp(): void {
     },
   });
 
+  // --- TTS (Web Speech API) ---
+  // ttsControls は後で代入するため、let で受けて onStateChange 内では遅延参照
+  let ttsControlsRef: TtsControlsController | null = null;
+  const tts = createTts({
+    rate: state.settings.ttsRate,
+    voiceURI: state.settings.ttsVoiceURI,
+    onStateChange: (ttsState) => {
+      ttsControlsRef?.syncToState(ttsState);
+    },
+    onError: (reason) => {
+      if (reason === 'unsupported') showError(copy.tts.unsupported);
+      else if (reason === 'no-voice') showError(copy.tts.noJapaneseVoice);
+    },
+  });
+
+  const ttsControls = createTtsControls({
+    getText: () => state.text,
+    tts,
+    onCannotPlay: (reason) => {
+      if (reason === 'empty') showError(copy.tts.nothingToRead);
+      else if (reason === 'unsupported') showError(copy.tts.unsupported);
+      else if (reason === 'no-voice') showError(copy.tts.noJapaneseVoice);
+    },
+  });
+  ttsControlsRef = ttsControls;
+
+  const ttsSettings = createTtsSettings({
+    initialRate: state.settings.ttsRate,
+    initialVoiceURI: state.settings.ttsVoiceURI,
+    tts,
+    onRateChange: (rate) => {
+      state.settings.ttsRate = rate;
+      tts.updateOptions({ rate });
+      persistSettings();
+    },
+    onVoiceChange: (voiceURI) => {
+      state.settings.ttsVoiceURI = voiceURI;
+      tts.updateOptions({ voiceURI });
+      persistSettings();
+    },
+  });
+
+  // reading-area の toolbar の先頭に TTS コントロールを差し込む
+  readingArea.toolbar.insertBefore(ttsControls.element, readingArea.toolbar.firstChild);
+
   const colorControls = createColorControls({
     initial: {
       theme: state.settings.theme,
@@ -232,8 +280,9 @@ export function initApp(): void {
       { title: copy.settings.fontHeading, body: fontPicker.element },
       { title: copy.settings.spacingHeading, body: spacingControls.element },
       { title: copy.settings.colorHeading, body: colorControls.element },
+      { title: copy.settings.ttsHeading, body: ttsSettings.element },
     ],
-    // initialOpenIndex は指定しない → 最初は3つとも閉じる
+    // initialOpenIndex は指定しない → 最初は全て閉じる
   });
 
   // --- Drawer state (mobile only — controlled by CSS media queries + JS toggle) ---

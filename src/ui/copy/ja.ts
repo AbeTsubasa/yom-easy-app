@@ -33,6 +33,20 @@ export const copy = {
     closeLabel: '✕',
     closeAria: '設定パネルを閉じる',
   },
+  tts: {
+    play: '🔊 読み上げる',
+    playAria: 'テキストを読み上げる',
+    pause: '⏸ 一時停止',
+    pauseAria: '読み上げを一時停止',
+    resume: '▶ 再開',
+    resumeAria: '読み上げを再開',
+    stop: '⏹ 停止',
+    stopAria: '読み上げを停止',
+    unsupported: 'お使いのブラウザは、まだ読み上げ機能に対応していないみたい。',
+    noJapaneseVoice:
+      'お使いの端末には、日本語の音声が見つからないみたい。OSの設定で日本語音声を追加できる場合があります。',
+    nothingToRead: '読み上げる文章が、まだありません。',
+  },
   reader: {
     textareaLabel: '読みたい文章',
     textareaPlaceholder:
@@ -95,6 +109,11 @@ export const copy = {
     bgColorLabel: '背景色',
     textColorLabel: '文字色',
     resetToPreset: 'プリセットの色に戻す',
+    ttsHeading: '読み上げ',
+    ttsHint: '速さや声を変えられます。実際に読み上げて、心地よい設定を見つけてみてください。',
+    ttsSpeedLabel: '読み上げの速さ',
+    ttsVoiceLabel: '声',
+    ttsVoiceDefault: 'おまかせ（端末の標準）',
   },
   onboarding: {
     welcome: 'ようこそ。',
