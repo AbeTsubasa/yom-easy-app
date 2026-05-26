@@ -1,5 +1,7 @@
 # Yom-easy
 
+[![Deploy](https://github.com/AbeTsubasa/yom-easy-app/actions/workflows/deploy.yml/badge.svg)](https://github.com/AbeTsubasa/yom-easy-app/actions/workflows/deploy.yml)
+
 文字を、あなたに合う見え方に変えるためのブラウザツールです。
 
 文字の大きさ、行の間、色、ふりがな、読み上げ。
