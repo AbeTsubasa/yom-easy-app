@@ -1,56 +1,125 @@
 import { copy } from '../copy/ja';
-import type { ViewMode } from '../../types/settings';
 
 export interface ReadingAreaOptions {
   initialText: string;
-  initialMode: ViewMode;
   onTextChange: (text: string) => void;
+  /** empty state の「ファイルを開く」CTA から呼ばれる */
+  onRequestOpenFile?: () => void;
 }
 
 export interface ReadingAreaController {
   element: HTMLElement;
-  setMode: (mode: ViewMode) => void;
   setText: (text: string) => void;
+  /** 編集モード（textarea 表示）に入る / 抜ける */
+  setEditing: (editing: boolean) => void;
   focusTextarea: () => void;
 }
 
 /**
- * テキスト入力エリア（textarea）と読み表示エリア（div）を1つの section にまとめる。
- * mode に応じて表示を切り替え、edit↔read どちらでも同じテキストを保持する。
+ * 3状態を持つ読みエリア。
+ * - empty: テキストなし → 中央に CTA 2つ
+ * - read:  テキストあり、preview 表示、「編集する」ボタン
+ * - edit:  textarea 表示、「読みに戻る」ボタン
  *
- * 設計メモ：
- * - innerHTML を使う箇所では必ず escapeHtml を通す（ユーザー入力をそのまま流さない）
- * - aria-live=polite で読みモードの内容変化をスクリーンリーダーに通知
- * - 段落区切りは「空行（\n\n 以上）」で判定。Sprint 3 で kuromoji を使った段落判定に差し替え可能
+ * 設計方針：
+ * - preview をデフォルトに（設定変更の効果を即座に視認できる）
+ * - 編集は明示的なアクションでのみ
+ * - innerHTML を使う preview は必ず escapeHtml を通す
+ * - aria-live=polite で読みモードの内容変化を SR に通知
  */
 export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaController {
   const wrapper = document.createElement('section');
   wrapper.className = 'reading-area';
   wrapper.setAttribute('aria-label', copy.reader.textareaLabel);
 
+  // --- Toolbar (toggle 編集) ---
+  const toolbar = document.createElement('div');
+  toolbar.className = 'reading-area__toolbar';
+
+  const editToggle = document.createElement('button');
+  editToggle.type = 'button';
+  editToggle.className = 'reading-area__edit-toggle';
+
+  toolbar.appendChild(editToggle);
+
+  // --- Empty state ---
+  const emptyState = document.createElement('div');
+  emptyState.className = 'reading-area__empty';
+  const emptyTitle = document.createElement('h2');
+  emptyTitle.className = 'reading-area__empty-title';
+  emptyTitle.textContent = copy.emptyState.title;
+  const emptyBody = document.createElement('p');
+  emptyBody.className = 'reading-area__empty-body';
+  emptyBody.textContent = copy.emptyState.body;
+  const emptyActions = document.createElement('div');
+  emptyActions.className = 'reading-area__empty-actions';
+
+  const emptyPasteButton = document.createElement('button');
+  emptyPasteButton.type = 'button';
+  emptyPasteButton.className = 'reading-area__empty-button';
+  emptyPasteButton.textContent = copy.emptyState.paste;
+  emptyPasteButton.addEventListener('click', () => {
+    setEditing(true);
+    setTimeout(() => textarea.focus(), 0);
+  });
+
+  const emptyOpenButton = document.createElement('button');
+  emptyOpenButton.type = 'button';
+  emptyOpenButton.className = 'reading-area__empty-button reading-area__empty-button--secondary';
+  emptyOpenButton.textContent = copy.emptyState.openFile;
+  emptyOpenButton.addEventListener('click', () => {
+    opts.onRequestOpenFile?.();
+  });
+
+  emptyActions.appendChild(emptyPasteButton);
+  emptyActions.appendChild(emptyOpenButton);
+  emptyState.appendChild(emptyTitle);
+  emptyState.appendChild(emptyBody);
+  emptyState.appendChild(emptyActions);
+
+  // --- Textarea (edit) ---
   const textarea = document.createElement('textarea');
   textarea.className = 'reading-area__textarea';
   textarea.setAttribute('aria-label', copy.reader.textareaLabel);
   textarea.placeholder = copy.reader.textareaPlaceholder;
   textarea.spellcheck = false;
   textarea.value = opts.initialText;
-  textarea.rows = 12;
+  textarea.rows = 14;
   textarea.autocomplete = 'off';
 
+  // --- Preview (read) ---
   const preview = document.createElement('article');
   preview.className = 'reading-area__preview';
   preview.setAttribute('aria-live', 'polite');
 
+  // --- Footer (char count) ---
+  const footer = document.createElement('div');
+  footer.className = 'reading-area__footer';
   const charCount = document.createElement('p');
   charCount.className = 'reading-area__char-count';
   charCount.setAttribute('aria-live', 'polite');
+  footer.appendChild(charCount);
 
-  let currentMode: ViewMode = opts.initialMode;
+  // --- State ---
   let currentText = opts.initialText;
+  /** 編集モード（textarea 表示）。初期は常に false（空 → empty state、非空 → preview） */
+  let editing = false;
 
-  const renderPreview = () => {
+  const renderEditToggle = (): void => {
+    if (editing) {
+      editToggle.textContent = copy.editToggle.close;
+      editToggle.setAttribute('aria-label', copy.editToggle.closeAria);
+      editToggle.dataset.state = 'editing';
+    } else {
+      editToggle.textContent = copy.editToggle.open;
+      editToggle.setAttribute('aria-label', copy.editToggle.openAria);
+      editToggle.dataset.state = 'reading';
+    }
+  };
+
+  const renderPreview = (): void => {
     if (!currentText.trim()) {
-      preview.innerHTML = `<p class="reading-area__empty">${nl2br(escapeHtml(copy.reader.emptyReadView))}</p>`;
+      preview.innerHTML = '';
       return;
     }
     const html = currentText
@@ -60,23 +129,40 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     preview.innerHTML = html;
   };
 
-  const updateCharCount = () => {
+  const updateCharCount = (): void => {
     const n = Array.from(currentText.trim()).length;
     charCount.textContent = copy.reader.charCount(n);
   };
 
-  const applyMode = (mode: ViewMode) => {
-    currentMode = mode;
-    wrapper.dataset.mode = mode;
-    if (mode === 'edit') {
-      textarea.style.display = '';
-      preview.style.display = 'none';
-    } else {
-      textarea.style.display = 'none';
-      preview.style.display = '';
-      renderPreview();
+  const renderState = (): void => {
+    const isEmpty = !currentText.trim();
+    wrapper.dataset.state = isEmpty && !editing ? 'empty' : editing ? 'editing' : 'reading';
+
+    // empty state: テキストなし、編集中でもない
+    emptyState.style.display = isEmpty && !editing ? '' : 'none';
+    // textarea: 編集中
+    textarea.style.display = editing ? '' : 'none';
+    // preview: テキストあり、編集中でない
+    preview.style.display = !editing && !isEmpty ? '' : 'none';
+    // toolbar: empty state でないときに表示
+    toolbar.style.display = isEmpty && !editing ? 'none' : '';
+    // footer: empty state でないときに表示
+    footer.style.display = isEmpty && !editing ? 'none' : '';
+
+    renderEditToggle();
+    if (!editing) renderPreview();
+    updateCharCount();
+  };
+
+  const setEditing = (next: boolean): void => {
+    editing = next;
+    renderState();
+    if (next) {
+      setTimeout(() => textarea.focus(), 0);
     }
   };
+
+  editToggle.addEventListener('click', () => setEditing(!editing));
 
   textarea.addEventListener('input', () => {
     currentText = textarea.value;
@@ -84,24 +170,25 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     opts.onTextChange(currentText);
   });
 
+  // --- Mount ---
+  wrapper.appendChild(toolbar);
+  wrapper.appendChild(emptyState);
   wrapper.appendChild(textarea);
   wrapper.appendChild(preview);
-  wrapper.appendChild(charCount);
+  wrapper.appendChild(footer);
 
-  applyMode(opts.initialMode);
-  updateCharCount();
+  renderState();
 
   return {
     element: wrapper,
-    setMode: applyMode,
-    setText: (text: string) => {
+    setText: (text) => {
       currentText = text;
       textarea.value = text;
-      updateCharCount();
-      if (currentMode === 'read') {
-        renderPreview();
-      }
+      // ファイル読み込み完了などで text がセットされたら、自動的に read モードへ
+      editing = false;
+      renderState();
     },
+    setEditing,
     focusTextarea: () => textarea.focus(),
   };
 }

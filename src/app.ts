@@ -4,10 +4,8 @@ import {
   type FontFamilyKey,
   type Settings,
   type ThemeKey,
-  type ViewMode,
 } from './types/settings';
 import { createHeader } from './ui/components/header';
-import { createModeToggle } from './ui/components/mode-toggle';
 import { createReadingArea } from './ui/components/reading-area';
 import { createFileInput } from './ui/components/file-input';
 import { createFontPicker } from './ui/components/font-picker';
@@ -28,7 +26,6 @@ import {
 
 interface AppState {
   text: string;
-  mode: ViewMode;
   settings: Settings;
 }
 
@@ -40,11 +37,10 @@ export function initApp(): void {
   const persisted = loadSettings();
   const state: AppState = {
     text: '',
-    mode: 'edit',
     settings: persisted ?? { ...DEFAULT_SETTINGS },
   };
 
-  /** 設定変更を localStorage に debounce 保存（連続スライダー操作などをまとめる） */
+  /** 設定変更を localStorage に debounce 保存 */
   const persistSettings = debounce(() => {
     saveSettings(state.settings);
   }, 300);
@@ -68,13 +64,12 @@ export function initApp(): void {
   /**
    * 色テーマは reading-area（textarea / プレビュー）にだけ適用する。
    * UI 部品（ヘッダー・設定パネル・ボタン等）は :root のデフォルト値で固定。
-   * 派生色（accent / border / button 等）は触らない。
    */
   const applyThemePreset = (key: ThemeKey): void => {
     const preset = THEME_MAP[key];
-    const root = document.documentElement.style;
-    root.setProperty('--reading-bg', preset.bg);
-    root.setProperty('--reading-text', preset.text);
+    const docStyle = document.documentElement.style;
+    docStyle.setProperty('--reading-bg', preset.bg);
+    docStyle.setProperty('--reading-text', preset.text);
   };
   const applyCustomBg = (color: string): void => {
     document.documentElement.style.setProperty('--reading-bg', color);
@@ -83,6 +78,7 @@ export function initApp(): void {
     document.documentElement.style.setProperty('--reading-text', color);
   };
 
+  // 初回適用
   applyFontFamily(state.settings.fontFamily);
   applyFontSize(state.settings.fontSize);
   applyLetterSpacing(state.settings.letterSpacing);
@@ -119,28 +115,7 @@ export function initApp(): void {
     errorRegion.textContent = '';
   };
 
-  // --- Reading area ---
-  const readingArea = createReadingArea({
-    initialText: state.text,
-    initialMode: state.mode,
-    onTextChange: (text) => {
-      state.text = text;
-    },
-  });
-
-  // --- Mode toggle ---
-  const modeToggle = createModeToggle({
-    initial: state.mode,
-    onChange: (mode) => {
-      state.mode = mode;
-      readingArea.setMode(mode);
-      if (mode === 'edit') {
-        readingArea.focusTextarea();
-      }
-    },
-  });
-
-  // --- File handling (shared between picker and drag&drop) ---
+  // --- File handling ---
   const applyLoadResult = (result: FileLoadResult): void => {
     if (result.ok) {
       state.text = result.text;
@@ -163,8 +138,22 @@ export function initApp(): void {
       applyLoadResult(result);
     },
   });
+  const nativeFileInput = fileInput.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement | null;
 
-  // --- Settings panel (Day 3: font picker; Day 4-5 でスライダー/色テーマを追加) ---
+  // --- Reading area (preview-first, edit on demand) ---
+  const readingArea = createReadingArea({
+    initialText: state.text,
+    onTextChange: (text) => {
+      state.text = text;
+    },
+    onRequestOpenFile: () => {
+      nativeFileInput?.click();
+    },
+  });
+
+  // --- Settings components ---
   const fontPicker = createFontPicker({
     initial: state.settings.fontFamily,
     onChange: (key) => {
@@ -240,6 +229,46 @@ export function initApp(): void {
     children: [fontPicker.element, spacingControls.element, colorControls.element],
   });
 
+  // --- Drawer state (mobile only — controlled by CSS media queries + JS toggle) ---
+  const drawerBackdrop = document.createElement('div');
+  drawerBackdrop.className = 'settings-backdrop';
+  drawerBackdrop.dataset.open = 'false';
+  drawerBackdrop.setAttribute('aria-hidden', 'true');
+
+  const drawerCloseButton = document.createElement('button');
+  drawerCloseButton.type = 'button';
+  drawerCloseButton.className = 'settings-panel__close';
+  drawerCloseButton.textContent = copy.drawer.closeLabel;
+  drawerCloseButton.setAttribute('aria-label', copy.drawer.closeAria);
+  settingsPanel.insertBefore(drawerCloseButton, settingsPanel.firstChild);
+
+  settingsPanel.dataset.open = 'false';
+
+  const settingsFab = document.createElement('button');
+  settingsFab.type = 'button';
+  settingsFab.className = 'settings-fab';
+  settingsFab.textContent = copy.drawer.openLabel;
+  settingsFab.setAttribute('aria-label', copy.drawer.openAria);
+
+  const openDrawer = (): void => {
+    settingsPanel.dataset.open = 'true';
+    drawerBackdrop.dataset.open = 'true';
+    settingsFab.setAttribute('aria-expanded', 'true');
+  };
+  const closeDrawer = (): void => {
+    settingsPanel.dataset.open = 'false';
+    drawerBackdrop.dataset.open = 'false';
+    settingsFab.setAttribute('aria-expanded', 'false');
+  };
+  settingsFab.addEventListener('click', openDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+  drawerCloseButton.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && settingsPanel.dataset.open === 'true') {
+      closeDrawer();
+    }
+  });
+
   // --- Layout ---
   const header = createHeader();
 
@@ -247,14 +276,18 @@ export function initApp(): void {
   main.className = 'app-main';
   main.setAttribute('role', 'main');
 
-  const controls = document.createElement('div');
-  controls.className = 'app-controls';
-  controls.appendChild(modeToggle.element);
-  controls.appendChild(fileInput);
+  const readingColumn = document.createElement('div');
+  readingColumn.className = 'app-main__reading-column';
 
-  main.appendChild(controls);
-  main.appendChild(errorRegion);
-  main.appendChild(readingArea.element);
+  const actionsBar = document.createElement('div');
+  actionsBar.className = 'app-main__actions';
+  actionsBar.appendChild(fileInput);
+
+  readingColumn.appendChild(actionsBar);
+  readingColumn.appendChild(errorRegion);
+  readingColumn.appendChild(readingArea.element);
+
+  main.appendChild(readingColumn);
   main.appendChild(settingsPanel);
 
   // --- Drag & Drop overlay (window-wide) ---
@@ -309,6 +342,8 @@ export function initApp(): void {
   root.innerHTML = '';
   root.appendChild(header);
   root.appendChild(main);
+  root.appendChild(drawerBackdrop);
+  root.appendChild(settingsFab);
   root.appendChild(dropOverlay);
 
   // --- Onboarding (初回のみ表示) ---

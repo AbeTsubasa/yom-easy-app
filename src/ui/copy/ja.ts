@@ -15,6 +15,24 @@ export const copy = {
     editAria: 'テキストを入力するモードに切り替える',
     readAria: '入力したテキストを読みやすく表示するモードに切り替える',
   },
+  editToggle: {
+    open: '✏ 編集する',
+    openAria: 'テキストを編集するためのエディタを開く',
+    close: '読みに戻る',
+    closeAria: 'エディタを閉じて読みに戻る',
+  },
+  emptyState: {
+    title: '読みたい文章を、はじめましょう',
+    body: '下のボタンからテキストを貼り付けるか、ファイルを開いてください。設定はあとからいつでも変えられます。',
+    paste: '✏ テキストを貼り付ける',
+    openFile: '📁 ファイルを開く',
+  },
+  drawer: {
+    openLabel: '⚙ 設定',
+    openAria: '設定パネルを開く',
+    closeLabel: '✕',
+    closeAria: '設定パネルを閉じる',
+  },
   reader: {
     textareaLabel: '読みたい文章',
     textareaPlaceholder:

@@ -12,8 +12,8 @@
   --paragraph-spacing: 2em;
 
   /* Layout */
-  --max-width: 40em;
   --content-padding: 1.25rem;
+  --sidebar-width: 340px;
 
   /* UI 用 — 固定（ヘッダー・設定パネル・ボタン等は常にこの色） */
   --bg-color: #faf7f0;
@@ -24,17 +24,21 @@
   --button-bg: #efeadc;
   --button-bg-active: #e6dccb;
 
-  /* Reading 用 — 動的（テーマ選択で書き換え。読みたいテキスト部分のみに適用） */
+  /* Reading 用 — 動的（読みたい文章の色） */
   --reading-bg: #faf7f0;
   --reading-text: #222222;
 
-  /* Error panel — 注意は引くが攻撃的でない色 */
+  /* Error panel */
   --error-bg: #fff3e0;
   --error-border: #f5c19f;
   --error-text: #5b2c10;
 
   /* Focus */
   --focus-ring: rgba(34, 34, 34, 0.5);
+
+  /* Drop shadow (FAB / drawer) */
+  --elevation-1: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --elevation-2: 0 -4px 16px rgba(0, 0, 0, 0.12);
 
   /* Reading Ruler placeholder (Sprint 4 で使用) */
   --ruler-color: rgba(255, 220, 100, 0.3);
@@ -71,91 +75,64 @@ body {
   outline-offset: 2px;
 }
 
-/* === Header === */
+/* ==========================================================================
+   Header
+   ========================================================================== */
 .app-header {
   border-bottom: 1px solid var(--accent-color);
-  padding: 0.75rem var(--content-padding);
+  padding: 0.6rem var(--content-padding);
 }
 
 .app-header__inner {
-  max-width: var(--max-width);
+  max-width: 1280px;
   margin: 0 auto;
 }
 
 .app-header__title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
 .app-header__tagline {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
   color: var(--muted-color);
   letter-spacing: 0.04em;
 }
 
-/* === Main === */
+/* ==========================================================================
+   Main layout — mobile first (single column)
+   PC (>= 1024px) で grid 2-column
+   ========================================================================== */
 .app-main {
-  max-width: var(--max-width);
+  max-width: 1280px;
   margin: 0 auto;
   padding: var(--content-padding);
+  padding-bottom: 6rem; /* FAB に隠れないよう底辺余白 */
 }
 
-/* === Controls (mode toggle + file input) === */
-.app-controls {
+.app-main__reading-column {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  min-width: 0;
 }
 
-@media (min-width: 640px) {
-  .app-controls {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
+.app-main__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-/* === Mode toggle === */
-.mode-toggle {
-  display: inline-flex;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 0.25rem;
-  background-color: var(--button-bg);
-  align-self: flex-start;
-}
-
-.mode-toggle__button {
-  appearance: none;
-  background: transparent;
-  border: none;
-  padding: 0.5rem 1.2rem;
-  border-radius: 999px;
-  font-family: inherit;
-  font-size: 1rem;
-  color: var(--muted-color);
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.mode-toggle__button--active {
-  background-color: var(--button-bg-active);
-  color: var(--text-color);
-}
-
-/* === File input === */
+/* ==========================================================================
+   File input
+   ========================================================================== */
 .file-input {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  align-self: flex-start;
 }
 
 .file-input__native {
@@ -194,13 +171,14 @@ body {
   color: var(--muted-color);
 }
 
-/* === Error region === */
+/* ==========================================================================
+   Error region
+   ========================================================================== */
 .app-error {
   background-color: var(--error-bg);
   border: 1px solid var(--error-border);
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   color: var(--error-text);
 }
 
@@ -208,16 +186,41 @@ body {
   display: none;
 }
 
-/* === Reading area === */
+/* ==========================================================================
+   Reading area (empty / read / edit)
+   ========================================================================== */
 .reading-area {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  min-height: 14em;
+}
+
+.reading-area__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.reading-area__edit-toggle {
+  appearance: none;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.reading-area__edit-toggle:hover {
+  background-color: var(--button-bg-active);
 }
 
 .reading-area__textarea {
   width: 100%;
-  min-height: 12em;
+  min-height: 14em;
   padding: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
@@ -235,11 +238,12 @@ body {
 }
 
 .reading-area__preview {
-  padding: 1rem;
+  padding: 1.25rem;
   background-color: var(--reading-bg);
   color: var(--reading-text);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
+  min-height: 14em;
   transition:
     background-color 180ms ease,
     color 180ms ease;
@@ -254,23 +258,94 @@ body {
 }
 
 .reading-area__empty {
-  color: var(--muted-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 2em 1em;
+  padding: 3rem 1.5rem;
+  background-color: var(--reading-bg);
+  color: var(--reading-text);
+  border: 2px dashed var(--border-color);
+  border-radius: 0.75rem;
+  min-height: 14em;
+}
+
+.reading-area__empty-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.reading-area__empty-body {
+  margin: 0 0 1.5rem;
+  max-width: 26em;
+  color: var(--muted-color);
+  line-height: 1.6;
+}
+
+.reading-area__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.reading-area__empty-button {
+  appearance: none;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.reading-area__empty-button:hover {
+  background-color: var(--button-bg-active);
+}
+
+.reading-area__empty-button--secondary {
+  background-color: transparent;
+}
+
+.reading-area__footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .reading-area__char-count {
   margin: 0;
   font-size: 0.85rem;
   color: var(--muted-color);
-  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-/* === Settings panel === */
+/* ==========================================================================
+   Settings panel — mobile = drawer / PC = sticky sidebar
+   ========================================================================== */
 .settings-panel {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--accent-color);
+  /* mobile default: fixed bottom drawer */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: translateY(100%);
+  transition: transform 250ms ease;
+  background-color: var(--bg-color);
+  border-top: 1px solid var(--border-color);
+  border-radius: 1rem 1rem 0 0;
+  padding: 1rem 1.25rem 1.5rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: var(--elevation-2);
+}
+
+.settings-panel[data-open='true'] {
+  transform: translateY(0);
 }
 
 .settings-panel__heading {
@@ -280,7 +355,66 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* === Font picker === */
+.settings-panel__close {
+  appearance: none;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  background-color: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--muted-color);
+  border-radius: 50%;
+}
+
+.settings-panel__close:hover {
+  background-color: var(--button-bg);
+  color: var(--text-color);
+}
+
+/* Backdrop (mobile only, when drawer is open) */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 45;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.settings-backdrop[data-open='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* FAB — mobile only */
+.settings-fab {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: 999px;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-color);
+  cursor: pointer;
+  z-index: 40;
+  box-shadow: var(--elevation-1);
+}
+
+.settings-fab:hover {
+  background-color: var(--button-bg-active);
+}
+
+/* ==========================================================================
+   Font picker
+   ========================================================================== */
 .font-picker__heading {
   margin: 0 0 0.4rem;
   font-size: 1rem;
@@ -294,7 +428,7 @@ body {
 }
 
 .font-picker__group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .font-picker__group:last-child {
@@ -303,7 +437,7 @@ body {
 
 .font-picker__group-heading {
   margin: 0 0 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted-color);
 }
@@ -311,7 +445,7 @@ body {
 .font-picker__disclaimer,
 .font-picker__pending {
   margin: 0 0 0.5rem;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--muted-color);
   line-height: 1.5;
 }
@@ -319,8 +453,8 @@ body {
 .font-picker__radio-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
 }
 
 .font-picker__option {
@@ -328,9 +462,9 @@ body {
   border: 1px solid var(--border-color);
   background-color: var(--button-bg);
   color: var(--text-color);
-  padding: 0.55rem 0.9rem;
+  padding: 0.5rem 0.8rem;
   border-radius: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -338,7 +472,6 @@ body {
   transition:
     background-color 120ms ease,
     border-color 120ms ease;
-  /* font-family は JS から個別設定 — 自己プレビュー用 */
 }
 
 .font-picker__option:hover {
@@ -349,17 +482,19 @@ body {
   background-color: var(--button-bg-active);
   border-color: var(--text-color);
   border-width: 2px;
-  padding: calc(0.55rem - 1px) calc(0.9rem - 1px);
+  padding: calc(0.5rem - 1px) calc(0.8rem - 1px);
 }
 
 .font-picker__option-label {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
-/* === Spacing controls === */
+/* ==========================================================================
+   Spacing controls
+   ========================================================================== */
 .spacing-controls {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px dashed var(--accent-color);
 }
 
@@ -370,17 +505,16 @@ body {
 }
 
 .spacing-controls__hint {
-  margin: 0 0 1.25rem;
+  margin: 0 0 1rem;
   font-size: 0.85rem;
   color: var(--muted-color);
 }
 
-/* === Range control === */
 .range-control {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1.1rem;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
 }
 
 .range-control:last-child {
@@ -395,7 +529,7 @@ body {
 }
 
 .range-control__label {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-color);
 }
 
@@ -419,10 +553,12 @@ body {
   border-radius: 4px;
 }
 
-/* === Color controls === */
+/* ==========================================================================
+   Color controls
+   ========================================================================== */
 .color-controls {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px dashed var(--accent-color);
 }
 
@@ -441,9 +577,9 @@ body {
 
 .color-controls__preset-group {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .color-controls__preset {
@@ -451,12 +587,12 @@ body {
   background: transparent;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  padding: 0.5rem 0.4rem;
+  padding: 0.5rem 0.3rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   transition:
     border-color 120ms ease,
     background-color 120ms ease;
@@ -471,23 +607,23 @@ body {
 .color-controls__preset--active {
   border-color: var(--text-color);
   border-width: 2px;
-  padding: calc(0.5rem - 1px) calc(0.4rem - 1px);
+  padding: calc(0.5rem - 1px) calc(0.3rem - 1px);
 }
 
 .color-controls__swatch {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .color-controls__preset-label {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   text-align: center;
   line-height: 1.3;
 }
@@ -499,18 +635,18 @@ body {
 }
 
 .color-controls__custom-hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
   color: var(--muted-color);
   line-height: 1.5;
 }
 
 .color-controls__custom-row {
   display: flex;
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: flex-start;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .color-controls__custom-input {
@@ -520,12 +656,12 @@ body {
 }
 
 .color-controls__custom-label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .color-controls__color-input {
-  width: 4rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 2.25rem;
   padding: 0;
   border: 1px solid var(--border-color);
   border-radius: 0.4rem;
@@ -549,7 +685,9 @@ body {
   background-color: var(--button-bg-active);
 }
 
-/* === Onboarding (初回起動時の3問) === */
+/* ==========================================================================
+   Onboarding modal
+   ========================================================================== */
 .onboarding {
   position: fixed;
   inset: 0;
@@ -609,13 +747,6 @@ body {
   gap: 0.75rem;
 }
 
-@media (min-width: 640px) {
-  .onboarding__choices {
-    flex-direction: row;
-    align-items: stretch;
-  }
-}
-
 .onboarding__choice {
   appearance: none;
   background-color: var(--bg-color);
@@ -652,11 +783,10 @@ body {
   font-size: 1rem;
   border-radius: 0.4rem;
   background-color: var(--bg-color);
-  /* 個別の font-family / background-color / color / line-height は JS から設定 */
 }
 
 .onboarding__choice-note {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--muted-color);
   line-height: 1.5;
 }
@@ -679,7 +809,9 @@ body {
   color: var(--text-color);
 }
 
-/* === Drop overlay === */
+/* ==========================================================================
+   Drop overlay
+   ========================================================================== */
 .drop-overlay {
   position: fixed;
   inset: 0;
@@ -687,7 +819,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 150;
   border: 4px dashed var(--accent-color);
   pointer-events: none;
 }
@@ -704,4 +836,49 @@ body {
   border-radius: 0.75rem;
   border: 1px solid var(--accent-color);
   margin: 0;
+}
+
+/* ==========================================================================
+   Tablet (>= 640px) — onboarding choices go side-by-side
+   ========================================================================== */
+@media (min-width: 640px) {
+  .onboarding__choices {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   Desktop (>= 1024px) — two-column grid, settings becomes sticky sidebar
+   ========================================================================== */
+@media (min-width: 1024px) {
+  .app-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
+    gap: 2rem;
+    align-items: start;
+    padding-bottom: var(--content-padding); /* FAB 不要なので底辺余白を戻す */
+  }
+
+  .settings-panel {
+    position: sticky;
+    top: 1rem;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    transform: none;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    box-shadow: none;
+  }
+
+  .settings-panel__close,
+  .settings-backdrop,
+  .settings-fab {
+    display: none !important;
+  }
 }
