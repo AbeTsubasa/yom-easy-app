@@ -15,7 +15,7 @@
   --max-width: 40em;
   --content-padding: 1.25rem;
 
-  /* Color — Soft Cream theme. 純黒・純白は避ける（極薄クリーム） */
+  /* UI 用 — 固定（ヘッダー・設定パネル・ボタン等は常にこの色） */
   --bg-color: #faf7f0;
   --text-color: #222222;
   --muted-color: #555555;
@@ -23,6 +23,10 @@
   --border-color: #cfc7b3;
   --button-bg: #efeadc;
   --button-bg-active: #e6dccb;
+
+  /* Reading 用 — 動的（テーマ選択で書き換え。読みたいテキスト部分のみに適用） */
+  --reading-bg: #faf7f0;
+  --reading-text: #222222;
 
   /* Error panel — 注意は引くが攻撃的でない色 */
   --error-bg: #fff3e0;
@@ -217,18 +221,28 @@ body {
   padding: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background-color: var(--reading-bg);
+  color: var(--reading-text);
   font-family: inherit;
   font-size: var(--font-size);
   line-height: var(--line-height);
   letter-spacing: var(--letter-spacing);
   word-spacing: var(--word-spacing);
   resize: vertical;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 .reading-area__preview {
-  padding: 0.5rem 0;
+  padding: 1rem;
+  background-color: var(--reading-bg);
+  color: var(--reading-text);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 .reading-area__preview p {

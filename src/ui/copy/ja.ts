@@ -68,8 +68,9 @@ export const copy = {
     letterSpacingLabel: '字の間（文字どうしの間隔）',
     lineHeightLabel: '行の間（行と行の間隔）',
     wordSpacingLabel: '語の間（単語どうしの間隔）',
-    colorHeading: '色のテーマ',
-    colorHint: '読みやすい背景と文字の組み合わせを選んでください。「あ」の見え方が参考になります。',
+    colorHeading: '読みたい文章の色',
+    colorHint:
+      '読みたい文章の部分だけ、背景と文字の色を変えられます。「あ」の見え方が参考になります。設定パネルやボタンの色はそのままです。',
     customColorHeading: '自由に色を選ぶ',
     customColorHint:
       'プリセットだけでは合わないとき、自分で色を作れます。背景と文字、それぞれ選べます。',

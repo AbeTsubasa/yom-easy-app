@@ -50,23 +50,22 @@ export function initApp(): void {
   const applyWordSpacing = (em: number): void => {
     document.documentElement.style.setProperty('--word-spacing', `${em}em`);
   };
+  /**
+   * 色テーマは reading-area（textarea / プレビュー）にだけ適用する。
+   * UI 部品（ヘッダー・設定パネル・ボタン等）は :root のデフォルト値で固定。
+   * 派生色（accent / border / button 等）は触らない。
+   */
   const applyThemePreset = (key: ThemeKey): void => {
     const preset = THEME_MAP[key];
     const root = document.documentElement.style;
-    root.setProperty('--bg-color', preset.bg);
-    root.setProperty('--text-color', preset.text);
-    root.setProperty('--muted-color', preset.muted);
-    root.setProperty('--accent-color', preset.accent);
-    root.setProperty('--border-color', preset.border);
-    root.setProperty('--button-bg', preset.buttonBg);
-    root.setProperty('--button-bg-active', preset.buttonBgActive);
-    root.setProperty('--focus-ring', preset.focusRing);
+    root.setProperty('--reading-bg', preset.bg);
+    root.setProperty('--reading-text', preset.text);
   };
   const applyCustomBg = (color: string): void => {
-    document.documentElement.style.setProperty('--bg-color', color);
+    document.documentElement.style.setProperty('--reading-bg', color);
   };
   const applyCustomText = (color: string): void => {
-    document.documentElement.style.setProperty('--text-color', color);
+    document.documentElement.style.setProperty('--reading-text', color);
   };
 
   applyFontFamily(state.settings.fontFamily);
