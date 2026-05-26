@@ -20,9 +20,10 @@ import { createHighlightControls } from './ui/components/highlight-controls';
 import { createCameraInput } from './ui/components/camera-input';
 import { createImagePreview, type ImagePreviewController } from './ui/components/image-preview';
 import { createRubyControls } from './ui/components/ruby-controls';
+import { createWakachiControls } from './ui/components/wakachi-controls';
 import { loadImageFile, disposeImage } from './modules/image-loader';
 import { recognizeImage, terminateOcr } from './modules/ocr';
-import { addFurigana } from './modules/ruby';
+import { generateReadingHtml } from './modules/ruby';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -170,10 +171,10 @@ export function initApp(): void {
       state.text = result.text;
       readingArea.setText(result.text);
       clearError();
-      // ふりがな ON ならファイル読込後に再生成
-      if (state.settings.rubyEnabled) {
-        lastRubyText = null;
-        void refreshRuby();
+      // ふりがな / 分かち書き ON なら再生成
+      if (isReadingEnhanced()) {
+        lastReadingKey = null;
+        void refreshReading();
       }
     } else {
       const message =
@@ -306,48 +307,60 @@ export function initApp(): void {
     initialText: state.text,
     onTextChange: (text) => {
       state.text = text;
-      if (state.settings.rubyEnabled) debouncedRefreshRuby();
+      if (state.settings.rubyEnabled) debouncedRefreshReading();
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
     },
   });
 
-  // --- Ruby (furigana) generation ---
-  /** 最後に ruby を生成したテキスト。同じテキストの再生成を省略 */
-  let lastRubyText: string | null = null;
+  // --- Reading HTML generation (ふりがな / 分かち書きの両対応) ---
+  /** 最後に reading HTML を生成したテキスト＋オプションの組み合わせ */
+  let lastReadingKey: string | null = null;
 
-  const refreshRuby = async (): Promise<void> => {
-    if (!state.settings.rubyEnabled) {
+  const isReadingEnhanced = (): boolean =>
+    state.settings.rubyEnabled || state.settings.wakachiEnabled;
+
+  const refreshReading = async (): Promise<void> => {
+    if (!isReadingEnhanced()) {
       readingArea.setRubyHtml(null);
-      lastRubyText = null;
+      lastReadingKey = null;
       return;
     }
     const text = state.text;
     if (!text.trim()) {
       readingArea.setRubyHtml(null);
-      lastRubyText = null;
+      lastReadingKey = null;
       return;
     }
-    if (text === lastRubyText) return;
+    const key = `${state.settings.rubyEnabled ? 'r' : ''}${state.settings.wakachiEnabled ? 'w' : ''}|${text}`;
+    if (key === lastReadingKey) return;
     try {
       const paragraphs = text.split(/\n{2,}/);
-      const rubyParas = await Promise.all(paragraphs.map((p) => addFurigana(p)));
-      // 生成中にテキストが変わっていたら破棄（race condition 対策）
-      if (text !== state.text) return;
-      const html = rubyParas.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
-      lastRubyText = text;
+      const htmlParas = await Promise.all(
+        paragraphs.map((p) =>
+          generateReadingHtml(p, {
+            withFurigana: state.settings.rubyEnabled,
+            withWakachi: state.settings.wakachiEnabled,
+          }),
+        ),
+      );
+      if (text !== state.text) return; // race condition
+      const html = htmlParas.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+      lastReadingKey = key;
       readingArea.setRubyHtml(html);
     } catch (e) {
-      console.error('[app] ruby generation failed:', e);
+      console.error('[app] reading html generation failed:', e);
       showError(copy.settings.rubyError);
       state.settings.rubyEnabled = false;
+      state.settings.wakachiEnabled = false;
       rubyControls.setEnabled(false);
+      wakachiControls.setEnabled(false);
       persistSettings();
     }
   };
-  const debouncedRefreshRuby = debounce(() => {
-    void refreshRuby();
+  const debouncedRefreshReading = debounce(() => {
+    void refreshReading();
   }, 350);
 
   // 初期 modifier 反映：
@@ -550,12 +563,18 @@ export function initApp(): void {
     onChange: (enabled) => {
       state.settings.rubyEnabled = enabled;
       persistSettings();
-      if (enabled) {
-        void refreshRuby();
-      } else {
-        readingArea.setRubyHtml(null);
-        lastRubyText = null;
-      }
+      lastReadingKey = null;
+      void refreshReading();
+    },
+  });
+
+  const wakachiControls = createWakachiControls({
+    initial: state.settings.wakachiEnabled,
+    onChange: (enabled) => {
+      state.settings.wakachiEnabled = enabled;
+      persistSettings();
+      lastReadingKey = null;
+      void refreshReading();
     },
   });
 
@@ -567,6 +586,7 @@ export function initApp(): void {
       { title: copy.settings.ttsHeading, body: ttsSettings.element },
       { title: copy.settings.highlightHeading, body: highlightControls.element },
       { title: copy.settings.rubyHeading, body: rubyControls.element },
+      { title: copy.settings.wakachiHeading, body: wakachiControls.element },
     ],
     // initialOpenIndex は指定しない → 最初は全て閉じる
   });

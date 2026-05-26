@@ -93,10 +93,16 @@ export interface Settings {
   highlightColor: HighlightColorKey;
   /**
    * ふりがな（ルビ）を自動付与するかどうか。
-   * ON にすると kuroshiro が漢字に対応する読みを <ruby> 要素として挿入する。
-   * 初回 ON 時に kuroshiro の初期化が走る（数秒）。
+   * ON にすると漢字に対応する読みを <ruby> 要素として挿入する。
+   * 初回 ON 時に kuromoji の初期化が走る（数秒）。
    */
   rubyEnabled: boolean;
+  /**
+   * 分かち書きするかどうか。
+   * ON にすると形態素境界に視覚的な細スペースを挟む。
+   * ひらがな主体文では特に効果あり、漢字仮名交じりでは効果薄め。
+   */
+  wakachiEnabled: boolean;
   /** @deprecated 旧フラグ。lineMode に統合済み。型は残すが UI からは扱わない */
   lineZebra: boolean;
   /**
@@ -129,7 +135,8 @@ export const DEFAULT_SETTINGS: Settings = {
   ttsVoiceURI: null,
   lineMode: 'zebra', // 隔行 zebra をデフォルト（研究で最も支持あり）
   highlightColor: 'subtle', // 控えめなグレー、まずは中立的に
-  rubyEnabled: false, // 初期 OFF（必要な人だけ ON→ kuroshiro 初期化）
+  rubyEnabled: false, // 初期 OFF（必要な人だけ ON→ kuromoji 初期化）
+  wakachiEnabled: false, // 初期 OFF
   lineZebra: true, // legacy 用、マイグレで lineMode に統合される
   wordBoundaryHighlight: false,
   lineHighlight: false,

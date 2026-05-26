@@ -165,6 +165,10 @@ export const copy = {
     rubyEnableLabel: 'ふりがなを付ける',
     rubyPreparing: 'ふりがなの準備中…',
     rubyError: 'ふりがなの準備に少し問題が起きたみたい。もう一度試してください。',
+    wakachiHeading: '分かち書き',
+    wakachiHint:
+      '単語の区切りに、目に見えるスペースを入れます。ひらがなが多い文章で効果が大きく、漢字とまじった文章では効果が薄めです。',
+    wakachiEnableLabel: '分かち書きにする',
   },
   onboarding: {
     welcome: 'ようこそ。',
