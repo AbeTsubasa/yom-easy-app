@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "yom-easy-debug",
+      "runtimeExecutable": "true",
+      "runtimeArgs": [],
+      "port": 5174
+    }
+  ]
+}
