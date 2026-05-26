@@ -78,6 +78,33 @@ export const copy = {
     textColorLabel: '文字色',
     resetToPreset: 'プリセットの色に戻す',
   },
+  onboarding: {
+    welcome: 'ようこそ。',
+    title: 'あなたに合う読み方を見つけましょう',
+    subtitle:
+      '3問だけ、お試しください。読みやすいと感じた方を選ぶだけです。正解はありません。',
+    skip: '今すぐ使う（あとから設定できます）',
+    closing: 'あとからいつでも、設定パネルから何度でも変えられます。',
+    progress: (current: number, total: number) => `${current} / ${total}`,
+    sampleText:
+      '文字を、あなたに合う見え方に変えていきましょう。読みやすさのかたちは、人それぞれです。',
+    q1: {
+      prompt: 'どちらの文字の形が読みやすいですか？',
+      aName: 'UD デジタル教科書体',
+      bName: '明朝体',
+      bNote: 'うろこ（線の端の飾り）があり、読みにくく感じる方が多いと言われています。',
+    },
+    q2: {
+      prompt: 'どちらの背景色が読みやすいですか？',
+      aName: 'やわらかいクリーム',
+      bName: 'うすい桃色',
+    },
+    q3: {
+      prompt: 'どちらの行の間が読みやすいですか？',
+      aName: '普通（行の間 1.5）',
+      bName: '広め（行の間 1.8）',
+    },
+  },
 } as const;
 
 export type Copy = typeof copy;

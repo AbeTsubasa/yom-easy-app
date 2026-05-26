@@ -14,9 +14,17 @@ import { createFontPicker } from './ui/components/font-picker';
 import { createSettingsPanel } from './ui/components/settings-panel';
 import { createSpacingControls } from './ui/components/spacing-controls';
 import { createColorControls } from './ui/components/color-controls';
+import { createOnboarding } from './ui/components/onboarding';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
+import {
+  loadSettings,
+  saveSettings,
+  isOnboardingDone,
+  markOnboardingDone,
+  debounce,
+} from './modules/storage';
 
 interface AppState {
   text: string;
@@ -28,11 +36,18 @@ export function initApp(): void {
   const root = document.getElementById('app');
   if (!root) return;
 
+  // localStorage から復元。失敗時はデフォルト。
+  const persisted = loadSettings();
   const state: AppState = {
     text: '',
     mode: 'edit',
-    settings: { ...DEFAULT_SETTINGS },
+    settings: persisted ?? { ...DEFAULT_SETTINGS },
   };
+
+  /** 設定変更を localStorage に debounce 保存（連続スライダー操作などをまとめる） */
+  const persistSettings = debounce(() => {
+    saveSettings(state.settings);
+  }, 300);
 
   // --- Style application helpers (CSS variable mutations) ---
   const applyFontFamily = (key: FontFamilyKey): void => {
@@ -155,6 +170,7 @@ export function initApp(): void {
     onChange: (key) => {
       state.settings.fontFamily = key;
       applyFontFamily(key);
+      persistSettings();
     },
   });
 
@@ -169,18 +185,22 @@ export function initApp(): void {
       fontSize: (v) => {
         state.settings.fontSize = v;
         applyFontSize(v);
+        persistSettings();
       },
       letterSpacing: (v) => {
         state.settings.letterSpacing = v;
         applyLetterSpacing(v);
+        persistSettings();
       },
       lineHeight: (v) => {
         state.settings.lineHeight = v;
         applyLineHeight(v);
+        persistSettings();
       },
       wordSpacing: (v) => {
         state.settings.wordSpacing = v;
         applyWordSpacing(v);
+        persistSettings();
       },
     },
   });
@@ -196,19 +216,23 @@ export function initApp(): void {
       state.settings.customBg = null;
       state.settings.customText = null;
       applyThemePreset(key);
+      persistSettings();
     },
     onCustomBgChange: (color) => {
       state.settings.customBg = color;
       applyCustomBg(color);
+      persistSettings();
     },
     onCustomTextChange: (color) => {
       state.settings.customText = color;
       applyCustomText(color);
+      persistSettings();
     },
     onResetCustom: () => {
       state.settings.customBg = null;
       state.settings.customText = null;
       applyThemePreset(state.settings.theme);
+      persistSettings();
     },
   });
 
@@ -286,4 +310,31 @@ export function initApp(): void {
   root.appendChild(header);
   root.appendChild(main);
   root.appendChild(dropOverlay);
+
+  // --- Onboarding (初回のみ表示) ---
+  if (!isOnboardingDone()) {
+    const onboardingEl = createOnboarding({
+      onComplete: (result) => {
+        state.settings.fontFamily = result.fontFamily;
+        state.settings.theme = result.theme;
+        state.settings.lineHeight = result.lineHeight;
+        state.settings.customBg = null;
+        state.settings.customText = null;
+        applyFontFamily(result.fontFamily);
+        applyThemePreset(result.theme);
+        applyLineHeight(result.lineHeight);
+        fontPicker.setSelection(result.fontFamily);
+        colorControls.setPreset(result.theme);
+        spacingControls.setLineHeight(result.lineHeight);
+        markOnboardingDone();
+        saveSettings(state.settings);
+        onboardingEl.remove();
+      },
+      onSkip: () => {
+        markOnboardingDone();
+        onboardingEl.remove();
+      },
+    });
+    root.appendChild(onboardingEl);
+  }
 }

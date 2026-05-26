@@ -52,6 +52,13 @@ export const FONT_DEFINITIONS: readonly FontDefinition[] = [
     stack: `"Meiryo", "メイリオ", ${FALLBACK}`,
     group: 'jp',
   },
+  {
+    key: 'mincho',
+    label: '明朝体',
+    stack: `"Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho", "YuMincho", "MS PMincho", "MS Mincho", serif`,
+    group: 'jp',
+    note: 'うろこ（線の端の飾り）があり、読みにくく感じる方が多いと言われています。',
+  },
   // 欧文
   {
     key: 'arial',

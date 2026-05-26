@@ -13,6 +13,7 @@ export type FontFamilyKey =
   | 'biz-udp'
   | 'noto-sans-jp'
   | 'meiryo'
+  | 'mincho'
   | 'arial'
   | 'verdana'
   | 'open-sans'
