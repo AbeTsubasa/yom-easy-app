@@ -39,11 +39,7 @@ export function createSpacingControls(opts: SpacingControlsOptions): SpacingCont
   const wrapper = document.createElement('div');
   wrapper.className = 'spacing-controls';
 
-  const heading = document.createElement('h3');
-  heading.className = 'spacing-controls__heading';
-  heading.textContent = copy.settings.spacingHeading;
-  wrapper.appendChild(heading);
-
+  // 見出しは accordion 親が提供
   const hint = document.createElement('p');
   hint.className = 'spacing-controls__hint';
   hint.textContent = copy.settings.spacingHint;

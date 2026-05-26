@@ -368,6 +368,75 @@ body {
   letter-spacing: 0.04em;
 }
 
+/* === Accordion within settings panel === */
+.settings-panel__accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.accordion-item {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: var(--bg-color);
+}
+
+.accordion-item--open {
+  border-color: var(--text-color);
+}
+
+.accordion-item__button {
+  appearance: none;
+  background-color: var(--button-bg);
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+.accordion-item__button:hover {
+  background-color: var(--button-bg-active);
+}
+
+.accordion-item__button[aria-expanded='true'] {
+  background-color: var(--button-bg-active);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.accordion-item__label {
+  flex: 1;
+}
+
+.accordion-item__icon {
+  font-size: 0.75rem;
+  color: var(--muted-color);
+  font-family: system-ui, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+}
+
+.accordion-item__body {
+  padding: 1rem;
+  background-color: var(--bg-color);
+}
+
+.accordion-item__body[hidden] {
+  display: none;
+}
+
 .settings-panel__close {
   appearance: none;
   position: absolute;
@@ -423,14 +492,8 @@ body {
 }
 
 /* ==========================================================================
-   Font picker
+   Font picker (見出しはaccordion親が表示するので削除済み)
    ========================================================================== */
-.font-picker__heading {
-  margin: 0 0 0.4rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 .font-picker__hint {
   margin: 0 0 1rem;
   font-size: 0.85rem;
@@ -500,20 +563,8 @@ body {
 }
 
 /* ==========================================================================
-   Spacing controls
+   Spacing controls (見出しはaccordion親が表示)
    ========================================================================== */
-.spacing-controls {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px dashed var(--accent-color);
-}
-
-.spacing-controls__heading {
-  margin: 0 0 0.4rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 .spacing-controls__hint {
   margin: 0 0 1rem;
   font-size: 0.85rem;
@@ -564,20 +615,8 @@ body {
 }
 
 /* ==========================================================================
-   Color controls
+   Color controls (見出しはaccordion親が表示)
    ========================================================================== */
-.color-controls {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px dashed var(--accent-color);
-}
-
-.color-controls__heading {
-  margin: 0 0 0.4rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 .color-controls__hint {
   margin: 0 0 1rem;
   font-size: 0.85rem;

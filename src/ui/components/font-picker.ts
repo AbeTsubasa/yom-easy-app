@@ -23,11 +23,7 @@ export function createFontPicker(opts: FontPickerOptions): FontPickerController 
   const wrapper = document.createElement('div');
   wrapper.className = 'font-picker';
 
-  const heading = document.createElement('h3');
-  heading.className = 'font-picker__heading';
-  heading.textContent = copy.settings.fontHeading;
-  wrapper.appendChild(heading);
-
+  // 見出しは accordion 親が提供するので、ここでは出さない
   const hint = document.createElement('p');
   hint.className = 'font-picker__hint';
   hint.textContent = copy.settings.fontHint;

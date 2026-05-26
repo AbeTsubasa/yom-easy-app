@@ -31,11 +31,7 @@ export function createColorControls(opts: ColorControlsOptions): ColorControlsCo
   const wrapper = document.createElement('div');
   wrapper.className = 'color-controls';
 
-  const heading = document.createElement('h3');
-  heading.className = 'color-controls__heading';
-  heading.textContent = copy.settings.colorHeading;
-  wrapper.appendChild(heading);
-
+  // 見出しは accordion 親が提供
   const hint = document.createElement('p');
   hint.className = 'color-controls__hint';
   hint.textContent = copy.settings.colorHint;

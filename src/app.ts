@@ -226,7 +226,12 @@ export function initApp(): void {
   });
 
   const settingsPanel = createSettingsPanel({
-    children: [fontPicker.element, spacingControls.element, colorControls.element],
+    sections: [
+      { title: copy.settings.fontHeading, body: fontPicker.element },
+      { title: copy.settings.spacingHeading, body: spacingControls.element },
+      { title: copy.settings.colorHeading, body: colorControls.element },
+    ],
+    // initialOpenIndex は指定しない → 最初は3つとも閉じる
   });
 
   // --- Drawer state (mobile only — controlled by CSS media queries + JS toggle) ---
@@ -240,9 +245,9 @@ export function initApp(): void {
   drawerCloseButton.className = 'settings-panel__close';
   drawerCloseButton.textContent = copy.drawer.closeLabel;
   drawerCloseButton.setAttribute('aria-label', copy.drawer.closeAria);
-  settingsPanel.insertBefore(drawerCloseButton, settingsPanel.firstChild);
+  settingsPanel.element.insertBefore(drawerCloseButton, settingsPanel.element.firstChild);
 
-  settingsPanel.dataset.open = 'false';
+  settingsPanel.element.dataset.open = 'false';
 
   const settingsFab = document.createElement('button');
   settingsFab.type = 'button';
@@ -251,20 +256,21 @@ export function initApp(): void {
   settingsFab.setAttribute('aria-label', copy.drawer.openAria);
 
   const openDrawer = (): void => {
-    settingsPanel.dataset.open = 'true';
+    settingsPanel.element.dataset.open = 'true';
     drawerBackdrop.dataset.open = 'true';
     settingsFab.setAttribute('aria-expanded', 'true');
   };
   const closeDrawer = (): void => {
-    settingsPanel.dataset.open = 'false';
+    settingsPanel.element.dataset.open = 'false';
     drawerBackdrop.dataset.open = 'false';
     settingsFab.setAttribute('aria-expanded', 'false');
+    settingsPanel.closeAll(); // drawer を閉じる時にアコーディオンも全て閉じる
   };
   settingsFab.addEventListener('click', openDrawer);
   drawerBackdrop.addEventListener('click', closeDrawer);
   drawerCloseButton.addEventListener('click', closeDrawer);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && settingsPanel.dataset.open === 'true') {
+    if (e.key === 'Escape' && settingsPanel.element.dataset.open === 'true') {
       closeDrawer();
     }
   });
@@ -288,7 +294,7 @@ export function initApp(): void {
   readingColumn.appendChild(readingArea.element);
 
   main.appendChild(readingColumn);
-  main.appendChild(settingsPanel);
+  main.appendChild(settingsPanel.element);
 
   // --- Drag & Drop overlay (window-wide) ---
   const dropOverlay = document.createElement('div');
