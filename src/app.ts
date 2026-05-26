@@ -187,9 +187,9 @@ export function initApp(): void {
   });
 
   // 初期 modifier 反映：
-  // - setZebraEnabled は内部で「行 zebra」モードを切り替える（API 名は旧名のまま）
+  // - setLineMode で off/zebra/flat を切り替え
   // - 行ホバー強調は v1.0 では UI から削除済 → false 固定
-  readingArea.setZebraEnabled(state.settings.lineZebra);
+  readingArea.setLineMode(state.settings.lineMode);
   readingArea.setLineHighlightEnabled(state.settings.lineHighlight);
 
   /**
@@ -365,12 +365,12 @@ export function initApp(): void {
   });
 
   const highlightControls = createHighlightControls({
-    initial: {
-      lineZebra: state.settings.lineZebra,
-    },
-    onLineZebraChange: (enabled) => {
-      state.settings.lineZebra = enabled;
-      readingArea.setZebraEnabled(enabled);
+    initial: state.settings.lineMode,
+    onChange: (mode) => {
+      state.settings.lineMode = mode;
+      // legacy フラグも同期（後方互換）
+      state.settings.lineZebra = mode === 'zebra';
+      readingArea.setLineMode(mode);
       persistSettings();
     },
   });

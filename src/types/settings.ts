@@ -24,6 +24,15 @@ export type FontFamilyKey =
 export type ThemeKey = 'cream' | 'peach' | 'orange' | 'yellow' | 'grey' | 'dark';
 
 /**
+ * 行ハイライトの表示モード。
+ * - 'off'：何もつけない
+ * - 'zebra'：奇数段落だけ薄い背景色（行追跡補助）
+ * - 'flat'：全段落に同じ薄い背景色（段落境界を視覚化）
+ * 両者は同時 ON が打ち消し合うため、ラジオ3択で提供する。
+ */
+export type LineMode = 'off' | 'zebra' | 'flat';
+
+/**
  * 入力/読みのモード切替。
  * - 'edit'：テキスト入力（textarea が表示）
  * - 'read'：読み込み（プレビューが表示）
@@ -60,9 +69,11 @@ export interface Settings {
   /** 選択した音声の voiceURI。null は端末の標準（最初の日本語音声） */
   ttsVoiceURI: string | null;
   /**
-   * 行ごとの色分け（段落 <p> 単位で奇数番目に薄い背景）。
-   * 言語非依存、CSS のみで動作、ディスレクシア視認性研究で支持あり。
+   * 行ハイライトの表示モード。off / zebra / flat の3択。
+   * v1.0 の主要ハイライト機能。言語非依存、CSS のみで動作。
    */
+  lineMode: LineMode;
+  /** @deprecated 旧フラグ。lineMode に統合済み。型は残すが UI からは扱わない */
   lineZebra: boolean;
   /**
    * 単語境界マーカー（kuromoji 分割）。
@@ -92,7 +103,8 @@ export const DEFAULT_SETTINGS: Settings = {
   customText: null,
   ttsRate: 1.0,
   ttsVoiceURI: null,
-  lineZebra: true, // 言語非依存・安定動作・研究支持あり。唯一のデフォルト ON ハイライト
+  lineMode: 'zebra', // 隔行 zebra をデフォルト（研究で最も支持あり）
+  lineZebra: true, // legacy 用、マイグレで lineMode に統合される
   wordBoundaryHighlight: false,
   lineHighlight: false,
   ttsSyncHighlight: false,

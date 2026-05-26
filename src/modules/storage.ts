@@ -68,10 +68,14 @@ export function loadSettings(): Settings | null {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
     const merged: Settings = { ...DEFAULT_SETTINGS, ...(parsed as Partial<Settings>) };
-    // v1 → v2 マイグレーション：旧3ハイライトは強制 OFF
+    // 旧3ハイライトは強制 OFF（v1.0 では UI から削除済み）
     merged.wordBoundaryHighlight = false;
     merged.lineHighlight = false;
     merged.ttsSyncHighlight = false;
+    // lineZebra → lineMode のマイグレ（保存値に lineMode がなければ lineZebra を見る）
+    if (!('lineMode' in (parsed as object))) {
+      merged.lineMode = merged.lineZebra ? 'zebra' : 'off';
+    }
     return merged;
   } catch {
     return null;

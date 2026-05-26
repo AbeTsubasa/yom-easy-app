@@ -1,27 +1,23 @@
 import { copy } from '../copy/ja';
+import type { LineMode } from '../../types/settings';
 
 export interface HighlightControlsOptions {
-  initial: {
-    lineZebra: boolean;
-  };
-  onLineZebraChange: (enabled: boolean) => void;
+  initial: LineMode;
+  onChange: (mode: LineMode) => void;
 }
 
 export interface HighlightControlsController {
   element: HTMLElement;
-  setLineZebra: (enabled: boolean) => void;
+  setMode: (mode: LineMode) => void;
 }
 
 /**
- * ハイライト設定セクション。v1.0 では「行ごとの色分け」1つだけ。
+ * 行ハイライト設定。off / zebra / flat の3択ラジオ。
  *
  * 設計判断：
- * - 単語境界（kuromoji）ハイライトは形態素分割が「単語」と一致せず、
- *   英語にも対応できなかったため UI から削除
- * - 行ハイライト（hover）と TTS 同期ハイライトも、現状では十分な精度・
- *   一貫性を提供できないため UI から削除（Settings 型には残し、将来の
- *   オプション再有効化に備える）
- * - 残った「行ごとの色分け」は言語非依存・CSS のみで動作・研究で支持あり
+ * - zebra と flat は同時 ON だと打ち消し合うのでラジオで排他選択
+ * - 各オプションに短い hint を添え、選ぶ前に効果が分かる
+ * - role=radiogroup、↑↓←→ キーで移動
  */
 export function createHighlightControls(opts: HighlightControlsOptions): HighlightControlsController {
   const wrapper = document.createElement('div');
@@ -32,66 +28,116 @@ export function createHighlightControls(opts: HighlightControlsOptions): Highlig
   intro.textContent = copy.settings.highlightHint;
   wrapper.appendChild(intro);
 
-  const zebraField = makeField({
-    id: 'toggle-line-zebra',
-    label: copy.settings.lineZebraLabel,
-    hint: copy.settings.lineZebraHint,
-    initial: opts.initial.lineZebra,
-    onChange: opts.onLineZebraChange,
+  const radioGroup = document.createElement('div');
+  radioGroup.className = 'highlight-controls__radio-group';
+  radioGroup.setAttribute('role', 'radiogroup');
+  radioGroup.setAttribute('aria-label', copy.settings.highlightHeading);
+
+  const fields: Record<LineMode, ReturnType<typeof makeOption>> = {
+    off: makeOption({
+      value: 'off',
+      label: copy.settings.lineModeOffLabel,
+      hint: copy.settings.lineModeOffHint,
+    }),
+    zebra: makeOption({
+      value: 'zebra',
+      label: copy.settings.lineModeZebraLabel,
+      hint: copy.settings.lineModeZebraHint,
+    }),
+    flat: makeOption({
+      value: 'flat',
+      label: copy.settings.lineModeFlatLabel,
+      hint: copy.settings.lineModeFlatHint,
+    }),
+  };
+
+  let currentMode: LineMode = opts.initial;
+
+  const applyState = (): void => {
+    (Object.entries(fields) as [LineMode, ReturnType<typeof makeOption>][]).forEach(
+      ([mode, field]) => {
+        const isActive = mode === currentMode;
+        field.input.checked = isActive;
+        field.input.tabIndex = isActive ? 0 : -1;
+        field.root.classList.toggle('highlight-controls__option--active', isActive);
+      },
+    );
+  };
+
+  const select = (mode: LineMode): void => {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    applyState();
+    opts.onChange(mode);
+  };
+
+  (['off', 'zebra', 'flat'] as const).forEach((mode) => {
+    const field = fields[mode];
+    field.input.addEventListener('change', () => {
+      if (field.input.checked) select(mode);
+    });
+    radioGroup.appendChild(field.root);
   });
-  wrapper.appendChild(zebraField.element);
+
+  // キーボード ↑↓←→ で前後移動
+  const order: LineMode[] = ['off', 'zebra', 'flat'];
+  radioGroup.addEventListener('keydown', (e) => {
+    const isPrev = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
+    const isNext = e.key === 'ArrowDown' || e.key === 'ArrowRight';
+    if (!isPrev && !isNext) return;
+    e.preventDefault();
+    const idx = order.indexOf(currentMode);
+    const delta = isPrev ? -1 : 1;
+    const next = order[(idx + delta + order.length) % order.length];
+    select(next);
+    fields[next].input.focus();
+  });
+
+  wrapper.appendChild(radioGroup);
+  applyState();
 
   return {
     element: wrapper,
-    setLineZebra: zebraField.setChecked,
-  };
-}
-
-interface FieldOptions {
-  id: string;
-  label: string;
-  hint: string;
-  initial: boolean;
-  onChange: (checked: boolean) => void;
-}
-
-interface FieldHandle {
-  element: HTMLElement;
-  setChecked: (checked: boolean) => void;
-}
-
-function makeField(opts: FieldOptions): FieldHandle {
-  const field = document.createElement('div');
-  field.className = 'highlight-controls__field';
-
-  const labelEl = document.createElement('label');
-  labelEl.className = 'highlight-controls__toggle';
-  labelEl.htmlFor = opts.id;
-
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.id = opts.id;
-  input.className = 'highlight-controls__checkbox';
-  input.checked = opts.initial;
-  input.addEventListener('change', () => opts.onChange(input.checked));
-
-  const text = document.createElement('span');
-  text.className = 'highlight-controls__toggle-label';
-  text.textContent = opts.label;
-
-  labelEl.appendChild(input);
-  labelEl.appendChild(text);
-  field.appendChild(labelEl);
-
-  const hintEl = document.createElement('p');
-  hintEl.className = 'highlight-controls__hint';
-  hintEl.textContent = opts.hint;
-  field.appendChild(hintEl);
-
-  return {
-    element: field,
-    setChecked: (checked) => {
-      input.checked = checked;
+    setMode: (mode) => {
+      currentMode = mode;
+      applyState();
     },
   };
+}
+
+interface OptionArgs {
+  value: LineMode;
+  label: string;
+  hint: string;
+}
+
+function makeOption(args: OptionArgs): {
+  root: HTMLElement;
+  input: HTMLInputElement;
+} {
+  const root = document.createElement('label');
+  root.className = 'highlight-controls__option';
+  root.htmlFor = `line-mode-${args.value}`;
+
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.id = `line-mode-${args.value}`;
+  input.name = 'line-mode';
+  input.value = args.value;
+  input.className = 'highlight-controls__radio';
+  input.setAttribute('role', 'radio');
+
+  const labelText = document.createElement('span');
+  labelText.className = 'highlight-controls__option-label';
+  labelText.textContent = args.label;
+
+  const hintText = document.createElement('span');
+  hintText.className = 'highlight-controls__option-hint';
+  hintText.textContent = args.hint;
+
+  root.appendChild(input);
+  root.appendChild(labelText);
+  root.appendChild(hintText);
+
+  return { root, input };
 }

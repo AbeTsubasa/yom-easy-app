@@ -1,5 +1,6 @@
 import { copy } from '../copy/ja';
 import type { Token } from '../../modules/morphology';
+import type { LineMode } from '../../types/settings';
 
 export interface ReadingAreaOptions {
   initialText: string;
@@ -27,9 +28,14 @@ export interface ReadingAreaController {
    * setHighlightTokens で span 描画している必要がある。
    */
   setHighlightIndex: (index: number) => void;
-  /** zebra（偶数 token に薄い背景）を有効/無効 */
+  /**
+   * 行モードの設定（off / zebra / flat）。
+   * v1.0 の主要ハイライト機能。CSS のみで動作するので軽量。
+   */
+  setLineMode: (mode: LineMode) => void;
+  /** @deprecated setLineMode を使ってください。古い API 互換のため残しています */
   setZebraEnabled: (enabled: boolean) => void;
-  /** 行ハイライト（段落 hover）を有効/無効 */
+  /** 行ハイライト（段落 hover）を有効/無効。v1.0 では UI から削除済 */
   setLineHighlightEnabled: (enabled: boolean) => void;
 }
 
@@ -121,11 +127,12 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   let editing = false;
   /** ハイライト対応モードのトークン配列。null = 通常描画 */
   let highlightTokens: Token[] | null = null;
-  let lineZebraEnabled = false;
+  let currentLineMode: LineMode = 'off';
   let lineHighlightEnabled = false;
 
   const updateModifierClasses = (): void => {
-    wrapper.classList.toggle('reading-area--line-zebra', lineZebraEnabled);
+    wrapper.classList.toggle('reading-area--line-zebra', currentLineMode === 'zebra');
+    wrapper.classList.toggle('reading-area--line-flat', currentLineMode === 'flat');
     wrapper.classList.toggle('reading-area--line-highlight', lineHighlightEnabled);
   };
 
@@ -237,9 +244,13 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
     },
+    setLineMode: (mode) => {
+      currentLineMode = mode;
+      updateModifierClasses();
+    },
     setZebraEnabled: (enabled) => {
-      // 旧 API 互換：単語 zebra → 行 zebra として動かす
-      lineZebraEnabled = enabled;
+      // 旧 API 互換：boolean → LineMode へマップ
+      currentLineMode = enabled ? 'zebra' : 'off';
       updateModifierClasses();
     },
     setLineHighlightEnabled: (enabled) => {

@@ -120,10 +120,16 @@ export const copy = {
     ttsVoiceLabel: '声',
     ttsVoiceDefault: 'おまかせ（端末の標準）',
     highlightHeading: 'ハイライト',
-    highlightHint: '読みやすさを助ける目印です。合うものを ON にしてください。',
-    lineZebraLabel: '行ごとの色分け',
-    lineZebraHint:
-      '段落ごとに薄い色で交互に塗ります。読んでいる場所を見失いにくくなります。日本語でも英語でも同じように動きます。',
+    highlightHint:
+      '行の見えやすさを助ける表示です。3つから1つを選んでください。日本語でも英語でも同じように動きます。',
+    lineModeOffLabel: 'なし',
+    lineModeOffHint: '何もつけません。',
+    lineModeZebraLabel: '隔行で色分け（zebra）',
+    lineModeZebraHint:
+      '段落ごとに薄い色で交互に塗ります。「行を飛ばして読んでしまう」のを防ぐ効果が報告されています。',
+    lineModeFlatLabel: '全行に背景色（ベタ塗り）',
+    lineModeFlatHint:
+      'すべての段落に同じ薄い色を入れます。段落のかたまりが見えやすくなります。',
   },
   onboarding: {
     welcome: 'ようこそ。',
