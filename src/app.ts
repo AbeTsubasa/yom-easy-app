@@ -19,6 +19,7 @@ import { createHighlightControls } from './ui/components/highlight-controls';
 import { createCameraInput } from './ui/components/camera-input';
 import { createImagePreview, type ImagePreviewController } from './ui/components/image-preview';
 import { loadImageFile, disposeImage } from './modules/image-loader';
+import { recognizeImage, terminateOcr } from './modules/ocr';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -179,11 +180,14 @@ export function initApp(): void {
   ) as HTMLInputElement | null;
 
   // --- Camera / image preview (Sprint 5) ---
-  /** 表示中の image-preview モーダルと、それが掴んでいる ObjectURL の組 */
+  /** 表示中の image-preview モーダルと、ObjectURL / File の組 */
   let currentImagePreview: {
     controller: ImagePreviewController;
     objectURL: string;
+    file: File;
   } | null = null;
+  /** OCR 実行中フラグ。キャンセル時に terminate を呼ぶための識別 */
+  let ocrInFlight = false;
 
   const closeImagePreview = (): void => {
     if (!currentImagePreview) return;
@@ -192,8 +196,52 @@ export function initApp(): void {
     currentImagePreview = null;
   };
 
+  const runOcr = async (): Promise<void> => {
+    if (!currentImagePreview || ocrInFlight) return;
+    const { controller, file } = currentImagePreview;
+    ocrInFlight = true;
+    controller.setProcessing(true);
+    try {
+      const text = await recognizeImage(file, (ev) => {
+        controller.setProgress(ev.status, ev.progress);
+      });
+      if (!ocrInFlight) {
+        // キャンセル後に到着した結果は破棄
+        return;
+      }
+      if (!text) {
+        showError(copy.ocr.noText);
+        controller.setProcessing(false);
+        ocrInFlight = false;
+        return;
+      }
+      // テキスト投入 → reading-area が自動で read モードへ
+      state.text = text;
+      readingArea.setText(text);
+      clearError();
+      ocrInFlight = false;
+      closeImagePreview();
+    } catch (e) {
+      console.error('OCR failed:', e);
+      if (ocrInFlight) {
+        showError(copy.ocr.failed);
+        controller.setProcessing(false);
+      }
+      ocrInFlight = false;
+    }
+  };
+
+  const cancelOcr = async (): Promise<void> => {
+    if (!ocrInFlight) return;
+    ocrInFlight = false;
+    // Worker を破棄。次回 recognize で再 init される（言語データは cache 済）
+    await terminateOcr();
+    if (currentImagePreview) {
+      currentImagePreview.controller.setProcessing(false);
+    }
+  };
+
   const openImagePreview = (file: File): void => {
-    // 既存の preview があれば先に閉じる
     closeImagePreview();
     const loaded = loadImageFile(file);
     if (!loaded.ok) {
@@ -209,16 +257,23 @@ export function initApp(): void {
     const controller = createImagePreview({
       objectURL: loaded.objectURL,
       onRecognize: () => {
-        // Day 1-2 は OCR placeholder。Day 3-4 で Tesseract.js を統合
-        showError(copy.errors.ocrComingSoon);
+        void runOcr();
+      },
+      onCancel: () => {
+        void cancelOcr();
       },
       onRetake: () => {
+        // OCR 実行中なら一旦キャンセル
+        if (ocrInFlight) void cancelOcr();
         closeImagePreview();
         nativeCameraInput?.click();
       },
-      onClose: closeImagePreview,
+      onClose: () => {
+        if (ocrInFlight) void cancelOcr();
+        closeImagePreview();
+      },
     });
-    currentImagePreview = { controller, objectURL: loaded.objectURL };
+    currentImagePreview = { controller, objectURL: loaded.objectURL, file: loaded.file };
     document.body.appendChild(controller.element);
   };
 

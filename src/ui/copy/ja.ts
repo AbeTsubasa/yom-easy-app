@@ -40,6 +40,17 @@ export const copy = {
     retake: '撮り直す',
     recognize: '文字を読み取る',
     recognizing: '読み取り中…',
+    cancel: 'キャンセル',
+    cancelAria: '文字の読み取りを中止する',
+  },
+  ocr: {
+    initializing: '読み取りの準備中…',
+    loadingModel: '日本語の辞書を読み込み中…',
+    recognizing: '文字を読み取り中…',
+    cancelled: '読み取りを中止しました。',
+    noText: '文字が見つからなかったみたい。明るいところで、もう一度撮ってみよう。',
+    failed: '文字をうまく読み取れなかったみたい。明るいところで、もう一度撮ってみよう。',
+    statusFallback: '処理中…',
   },
   tts: {
     play: '🔊 読み上げる',

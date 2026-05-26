@@ -9,21 +9,26 @@ export interface ImagePreviewOptions {
   onRetake: () => void;
   /** モーダルを閉じる（✕ / Esc / 背景クリック） */
   onClose: () => void;
+  /** 「キャンセル」ボタン押下時（processing 中だけ表示される） */
+  onCancel?: () => void;
 }
 
 export interface ImagePreviewController {
   element: HTMLElement;
-  /** OCR 実行中の状態を反映（ボタンを無効化、進捗表示など） */
+  /** OCR 実行中の状態。true で recognize ボタンが「キャンセル」になり、進捗バー表示 */
   setProcessing: (processing: boolean) => void;
+  /** 進捗の更新（processing 中のみ意味あり）。pct は 0.0–1.0 */
+  setProgress: (status: string, pct: number) => void;
 }
 
 /**
  * 撮影/選択した画像のプレビューモーダル。
- * - 画像を中央に表示
- * - 「撮り直し」「文字を読み取る」「✕（閉じる）」
- * - 画像はサーバーに送らず、Object URL でローカル表示のみ
  *
- * Day 1-2 では「文字を読み取る」は placeholder（実 OCR は Day 3-4）
+ * 状態：
+ * - 通常：[撮り直す] [文字を読み取る]
+ * - processing：[キャンセル]（recognize ボタンが置き換わる）＋ 進捗バー表示
+ *
+ * 画像はサーバーに送らず、Object URL でローカル表示のみ。
  */
 export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewController {
   const overlay = document.createElement('div');
@@ -56,6 +61,33 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
   hint.className = 'image-preview__hint';
   hint.textContent = copy.imagePreview.hint;
 
+  // --- Progress (hidden until processing) ---
+  const progressWrap = document.createElement('div');
+  progressWrap.className = 'image-preview__progress';
+  progressWrap.hidden = true;
+  progressWrap.setAttribute('role', 'status');
+  progressWrap.setAttribute('aria-live', 'polite');
+
+  const progressStatus = document.createElement('p');
+  progressStatus.className = 'image-preview__progress-status';
+  progressStatus.textContent = copy.ocr.initializing;
+
+  const progressBar = document.createElement('div');
+  progressBar.className = 'image-preview__progress-bar';
+  progressBar.setAttribute('role', 'progressbar');
+  progressBar.setAttribute('aria-valuemin', '0');
+  progressBar.setAttribute('aria-valuemax', '100');
+  progressBar.setAttribute('aria-valuenow', '0');
+
+  const progressFill = document.createElement('div');
+  progressFill.className = 'image-preview__progress-fill';
+  progressFill.style.width = '0%';
+  progressBar.appendChild(progressFill);
+
+  progressWrap.appendChild(progressStatus);
+  progressWrap.appendChild(progressBar);
+
+  // --- Actions ---
   const actions = document.createElement('div');
   actions.className = 'image-preview__actions';
 
@@ -71,13 +103,22 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
   recognizeButton.textContent = copy.imagePreview.recognize;
   recognizeButton.addEventListener('click', () => opts.onRecognize());
 
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.className = 'image-preview__button image-preview__button--secondary';
+  cancelButton.textContent = copy.imagePreview.cancel;
+  cancelButton.setAttribute('aria-label', copy.imagePreview.cancelAria);
+  cancelButton.addEventListener('click', () => opts.onCancel?.());
+
   actions.appendChild(retakeButton);
   actions.appendChild(recognizeButton);
+  // cancelButton はデフォルト非表示、setProcessing(true) で挿入
 
   card.appendChild(closeButton);
   card.appendChild(titleEl);
   card.appendChild(img);
   card.appendChild(hint);
+  card.appendChild(progressWrap);
   card.appendChild(actions);
   overlay.appendChild(card);
 
@@ -89,7 +130,6 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
     if (e.key === 'Escape') opts.onClose();
   };
   document.addEventListener('keydown', onKeyDown);
-  // overlay が remove されるときにリスナー解除（呼び出し側で remove を呼ぶ）
   const observer = new MutationObserver(() => {
     if (!overlay.isConnected) {
       document.removeEventListener('keydown', onKeyDown);
@@ -98,14 +138,50 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
+  let processing = false;
+
+  const setProcessing = (next: boolean): void => {
+    processing = next;
+    if (next) {
+      progressWrap.hidden = false;
+      // recognize → cancel に差し替え
+      actions.innerHTML = '';
+      actions.appendChild(cancelButton);
+    } else {
+      progressWrap.hidden = true;
+      progressFill.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
+      progressStatus.textContent = copy.ocr.initializing;
+      // 通常ボタンに戻す
+      actions.innerHTML = '';
+      actions.appendChild(retakeButton);
+      actions.appendChild(recognizeButton);
+    }
+    // 閉じるボタンも processing 中は無効化（中断は cancel ボタンで）
+    closeButton.disabled = next;
+  };
+
+  /** Tesseract.js のステータス文字列を、ユーザー向けの日本語に翻訳する */
+  const translateStatus = (raw: string): string => {
+    const lower = raw.toLowerCase();
+    if (lower.includes('loading')) return copy.ocr.loadingModel;
+    if (lower.includes('initializing')) return copy.ocr.initializing;
+    if (lower.includes('recognizing')) return copy.ocr.recognizing;
+    return copy.ocr.statusFallback;
+  };
+
+  const setProgress = (status: string, pct: number): void => {
+    if (!processing) return;
+    progressStatus.textContent = translateStatus(status);
+    const clamped = Math.max(0, Math.min(1, pct));
+    const percentInt = Math.round(clamped * 100);
+    progressFill.style.width = `${percentInt}%`;
+    progressBar.setAttribute('aria-valuenow', String(percentInt));
+  };
+
   return {
     element: overlay,
-    setProcessing: (processing) => {
-      retakeButton.disabled = processing;
-      recognizeButton.disabled = processing;
-      recognizeButton.textContent = processing
-        ? copy.imagePreview.recognizing
-        : copy.imagePreview.recognize;
-    },
+    setProcessing,
+    setProgress,
   };
 }
