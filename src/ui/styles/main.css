@@ -13,16 +13,24 @@
 
   /* Layout */
   --max-width: 40em;
-  --content-padding: 1.5rem;
+  --content-padding: 1.25rem;
 
   /* Color — Cream theme. 純黒・純白は避ける */
   --bg-color: #fdf6e3;
   --text-color: #222222;
   --muted-color: #555555;
   --accent-color: #edd1b0;
+  --border-color: #c8b89a;
+  --button-bg: #f0e6cd;
+  --button-bg-active: #edd1b0;
+
+  /* Error panel — 注意は引くが攻撃的でない色 */
+  --error-bg: #fff3e0;
+  --error-border: #f5c19f;
+  --error-text: #5b2c10;
 
   /* Focus */
-  --focus-ring: rgba(34, 34, 34, 0.45);
+  --focus-ring: rgba(34, 34, 34, 0.5);
 
   /* Reading Ruler placeholder (Sprint 4 で使用) */
   --ruler-color: rgba(255, 220, 100, 0.3);
@@ -51,6 +59,7 @@ body {
   text-align: left;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 :focus-visible {
@@ -58,24 +67,214 @@ body {
   outline-offset: 2px;
 }
 
-.reading-area {
+/* === Header === */
+.app-header {
+  border-bottom: 1px solid var(--accent-color);
+  padding: 0.75rem var(--content-padding);
+}
+
+.app-header__inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.app-header__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.app-header__tagline {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  letter-spacing: 0.04em;
+}
+
+/* === Main === */
+.app-main {
   max-width: var(--max-width);
   margin: 0 auto;
   padding: var(--content-padding);
 }
 
-.reading-area__title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-  letter-spacing: 0.04em;
+/* === Controls (mode toggle + file input) === */
+.app-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
-.reading-area__intro,
-.reading-area__placeholder {
+@media (min-width: 640px) {
+  .app-controls {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+/* === Mode toggle === */
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.25rem;
+  background-color: var(--button-bg);
+  align-self: flex-start;
+}
+
+.mode-toggle__button {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--muted-color);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.mode-toggle__button--active {
+  background-color: var(--button-bg-active);
+  color: var(--text-color);
+}
+
+/* === File input === */
+.file-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-self: flex-start;
+}
+
+.file-input__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.file-input__button {
+  display: inline-block;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.5rem;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+}
+
+.file-input__native:focus-visible + .file-input__button {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.file-input__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+/* === Error region === */
+.app-error {
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: var(--error-text);
+}
+
+.app-error[hidden] {
+  display: none;
+}
+
+/* === Reading area === */
+.reading-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reading-area__textarea {
+  width: 100%;
+  min-height: 12em;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  letter-spacing: var(--letter-spacing);
+  word-spacing: var(--word-spacing);
+  resize: vertical;
+}
+
+.reading-area__preview {
+  padding: 0.5rem 0;
+}
+
+.reading-area__preview p {
   margin: 0 0 var(--paragraph-spacing);
 }
 
-.reading-area__placeholder {
+.reading-area__preview p:last-child {
+  margin-bottom: 0;
+}
+
+.reading-area__empty {
   color: var(--muted-color);
+  text-align: center;
+  padding: 2em 1em;
+}
+
+.reading-area__char-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  text-align: right;
+}
+
+/* === Drop overlay === */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(253, 246, 227, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border: 4px dashed var(--accent-color);
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay__message {
+  font-size: 1.3rem;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  padding: 1.25rem 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--accent-color);
+  margin: 0;
 }
