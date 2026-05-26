@@ -17,8 +17,9 @@ export interface ReadingAreaController {
   setEditing: (editing: boolean) => void;
   focusTextarea: () => void;
   /**
-   * ハイライト対応モードに切り替える。
-   * tokens を渡すと preview を span 分割で再描画、null で通常描画に戻す。
+   * 単語ごとに span 分割した描画モードに切り替える。
+   * tokens を渡すと preview を span 分割で再描画、null で通常描画（段落のみ）に戻す。
+   * zebra や TTS 同期ハイライトを使うには span 分割が必要。
    */
   setHighlightTokens: (tokens: Token[] | null) => void;
   /**
@@ -26,6 +27,10 @@ export interface ReadingAreaController {
    * setHighlightTokens で span 描画している必要がある。
    */
   setHighlightIndex: (index: number) => void;
+  /** zebra（偶数 token に薄い背景）を有効/無効 */
+  setZebraEnabled: (enabled: boolean) => void;
+  /** 行ハイライト（段落 hover）を有効/無効 */
+  setLineHighlightEnabled: (enabled: boolean) => void;
 }
 
 /**
@@ -116,6 +121,13 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   let editing = false;
   /** ハイライト対応モードのトークン配列。null = 通常描画 */
   let highlightTokens: Token[] | null = null;
+  let zebraEnabled = false;
+  let lineHighlightEnabled = false;
+
+  const updateModifierClasses = (): void => {
+    wrapper.classList.toggle('reading-area--zebra', zebraEnabled);
+    wrapper.classList.toggle('reading-area--line-highlight', lineHighlightEnabled);
+  };
 
   const renderEditToggle = (): void => {
     if (editing) {
@@ -225,27 +237,61 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
     },
+    setZebraEnabled: (enabled) => {
+      zebraEnabled = enabled;
+      updateModifierClasses();
+    },
+    setLineHighlightEnabled: (enabled) => {
+      lineHighlightEnabled = enabled;
+      updateModifierClasses();
+    },
   };
 }
 
-/** text を tokens で span 分割しつつ、token に含まれない隙間（whitespace等）は plain で出力 */
+/**
+ * text を tokens で span 分割しつつ、段落構造（\n\n）を <p> として保持する。
+ * 段落ごとに、その範囲に含まれる tokens だけを span 化する。
+ * 行ハイライト（段落 hover）を機能させるため、必ず複数 <p> 構造を維持する。
+ */
 function renderTextWithTokens(text: string, tokens: Token[]): string {
-  if (tokens.length === 0) {
-    return `<p>${nl2br(escapeHtml(text))}</p>`;
-  }
-  let html = '';
+  // 段落境界を保ったまま分割
+  const paragraphs: { charStart: number; text: string }[] = [];
   let pos = 0;
-  tokens.forEach((t, i) => {
-    if (pos < t.charStart) {
-      html += nl2br(escapeHtml(text.slice(pos, t.charStart)));
+  for (const part of text.split(/(\n{2,})/)) {
+    if (/^\n{2,}$/.test(part)) {
+      pos += part.length; // 区切り自体は描画しない
+    } else if (part.length > 0) {
+      paragraphs.push({ charStart: pos, text: part });
+      pos += part.length;
     }
-    html += `<span class="reading-area__token" data-i="${i}">${nl2br(escapeHtml(t.surface))}</span>`;
-    pos = t.charEnd;
-  });
-  if (pos < text.length) {
-    html += nl2br(escapeHtml(text.slice(pos)));
   }
-  return `<p>${html}</p>`;
+
+  if (tokens.length === 0) {
+    return paragraphs.map((p) => `<p>${nl2br(escapeHtml(p.text))}</p>`).join('');
+  }
+
+  return paragraphs
+    .map((p) => {
+      const pStart = p.charStart;
+      const pEnd = p.charStart + p.text.length;
+      let html = '';
+      let cursor = pStart;
+      for (let i = 0; i < tokens.length; i++) {
+        const t = tokens[i];
+        if (t.charEnd <= pStart) continue;
+        if (t.charStart >= pEnd) break;
+        if (cursor < t.charStart) {
+          html += nl2br(escapeHtml(text.slice(cursor, t.charStart)));
+        }
+        html += `<span class="reading-area__token" data-i="${i}">${nl2br(escapeHtml(t.surface))}</span>`;
+        cursor = t.charEnd;
+      }
+      if (cursor < pEnd) {
+        html += nl2br(escapeHtml(text.slice(cursor, pEnd)));
+      }
+      return `<p>${html}</p>`;
+    })
+    .join('');
 }
 
 function escapeHtml(s: string): string {

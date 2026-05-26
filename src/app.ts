@@ -15,6 +15,7 @@ import { createColorControls } from './ui/components/color-controls';
 import { createOnboarding } from './ui/components/onboarding';
 import { createTtsControls, type TtsControlsController } from './ui/components/tts-controls';
 import { createTtsSettings } from './ui/components/tts-settings';
+import { createHighlightControls } from './ui/components/highlight-controls';
 import { loadTextFile, loadFromDropEvent, type FileLoadResult } from './modules/file-loader';
 import { FONT_MAP } from './modules/font-registry';
 import { THEME_MAP } from './modules/theme-registry';
@@ -133,6 +134,8 @@ export function initApp(): void {
       state.text = result.text;
       readingArea.setText(result.text);
       clearError();
+      // 単語境界 ON ならファイル読込後に zebra を反映
+      void refreshWordBoundary();
     } else {
       const message =
         result.reason === 'wrong-type'
@@ -159,11 +162,45 @@ export function initApp(): void {
     initialText: state.text,
     onTextChange: (text) => {
       state.text = text;
+      // テキスト変更時、単語境界 ON なら kuromoji で再 tokenize して preview を更新
+      void refreshWordBoundary();
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
     },
   });
+
+  // 初期 modifier 反映（zebra / line-highlight）
+  readingArea.setZebraEnabled(state.settings.wordBoundaryHighlight);
+  readingArea.setLineHighlightEnabled(state.settings.lineHighlight);
+
+  /**
+   * preview を kuromoji span で再描画するためのトークン保持。
+   * wordBoundary 表示と TTS 同期ハイライトで共有する。
+   */
+  let currentTokens: Token[] | null = null;
+
+  /**
+   * 単語境界マーカー用に kuromoji で tokenize し、preview を span 描画に切り替える。
+   * - wordBoundary OFF or text 空 → 通常描画に戻す
+   * - kuromoji 初期化失敗時はサイレントに通常描画（致命的エラーは avoid）
+   */
+  const refreshWordBoundary = async (): Promise<void> => {
+    if (!state.settings.wordBoundaryHighlight || !state.text.trim()) {
+      currentTokens = null;
+      readingArea.setHighlightTokens(null);
+      return;
+    }
+    try {
+      await ensureTokenizer();
+      currentTokens = tokenize(state.text);
+      readingArea.setHighlightTokens(currentTokens);
+    } catch (e) {
+      console.error('[app] word boundary tokenize failed:', e);
+      currentTokens = null;
+      readingArea.setHighlightTokens(null);
+    }
+  };
 
   // --- Settings components ---
   const fontPicker = createFontPicker({
@@ -209,8 +246,6 @@ export function initApp(): void {
   // --- TTS (Web Speech API) ---
   // ttsControls は後で代入するため、let で受けて onStateChange 内では遅延参照
   let ttsControlsRef: TtsControlsController | null = null;
-  /** 現在再生中のトークン列。idle に戻ったらクリア */
-  let currentTokens: Token[] | null = null;
 
   const tts = createTts({
     rate: state.settings.ttsRate,
@@ -218,12 +253,13 @@ export function initApp(): void {
     onStateChange: (ttsState) => {
       ttsControlsRef?.syncToState(ttsState);
       if (ttsState === 'idle') {
-        // 読み上げ終了：ハイライトを解除し、preview を通常描画に戻す
-        currentTokens = null;
-        readingArea.setHighlightTokens(null);
+        // 読み上げ終了：TTS 同期ハイライトのみ解除（wordBoundary span は残す）
+        readingArea.setHighlightIndex(-1);
       }
     },
     onBoundary: (ev) => {
+      // ベストエフォート：ttsSyncHighlight が ON のときだけ追従
+      if (!state.settings.ttsSyncHighlight) return;
       if (!currentTokens) return;
       const idx = findTokenIndex(currentTokens, ev.charIndex);
       if (idx >= 0) readingArea.setHighlightIndex(idx);
@@ -234,7 +270,12 @@ export function initApp(): void {
     },
   });
 
-  /** 「読み上げる」を押した時の処理：tokenize → preview に span 描画 → TTS 再生 */
+  /**
+   * 「読み上げる」を押した時の処理。
+   * - TTS 同期ハイライト ON 時：必要なら kuromoji 初期化＋tokenize → 同期ハイライト準備
+   * - 単語境界ハイライト ON 時：既に refreshWordBoundary で tokens がある
+   * - どちらも OFF 時：tokenize を省略して即 play（軽快）
+   */
   const startReading = async (): Promise<void> => {
     const text = state.text;
     if (!text.trim()) {
@@ -245,20 +286,24 @@ export function initApp(): void {
       showError(copy.tts.unsupported);
       return;
     }
-    // kuromoji 未初期化なら準備中表示
-    if (!isTokenizerReady()) {
-      ttsControlsRef?.syncToState('loading');
+    const needsTokens =
+      state.settings.ttsSyncHighlight || state.settings.wordBoundaryHighlight;
+    if (needsTokens && !currentTokens) {
+      if (!isTokenizerReady()) {
+        ttsControlsRef?.syncToState('loading');
+      }
+      try {
+        await ensureTokenizer();
+        currentTokens = tokenize(text);
+        readingArea.setHighlightTokens(currentTokens);
+      } catch (e) {
+        console.error('TTS preparation failed:', e);
+        showError(copy.tts.preparingError);
+        ttsControlsRef?.syncToState('idle');
+        return;
+      }
     }
-    try {
-      await ensureTokenizer();
-      currentTokens = tokenize(text);
-      readingArea.setHighlightTokens(currentTokens);
-      tts.play(text);
-    } catch (e) {
-      console.error('TTS preparation failed:', e);
-      showError(copy.tts.preparingError);
-      ttsControlsRef?.syncToState('idle');
-    }
+    tts.play(text);
   };
 
   const ttsControls = createTtsControls({
@@ -322,12 +367,37 @@ export function initApp(): void {
     },
   });
 
+  const highlightControls = createHighlightControls({
+    initial: {
+      wordBoundary: state.settings.wordBoundaryHighlight,
+      lineHighlight: state.settings.lineHighlight,
+      ttsSync: state.settings.ttsSyncHighlight,
+    },
+    onWordBoundaryChange: (enabled) => {
+      state.settings.wordBoundaryHighlight = enabled;
+      readingArea.setZebraEnabled(enabled);
+      void refreshWordBoundary();
+      persistSettings();
+    },
+    onLineHighlightChange: (enabled) => {
+      state.settings.lineHighlight = enabled;
+      readingArea.setLineHighlightEnabled(enabled);
+      persistSettings();
+    },
+    onTtsSyncChange: (enabled) => {
+      state.settings.ttsSyncHighlight = enabled;
+      if (!enabled) readingArea.setHighlightIndex(-1);
+      persistSettings();
+    },
+  });
+
   const settingsPanel = createSettingsPanel({
     sections: [
       { title: copy.settings.fontHeading, body: fontPicker.element },
       { title: copy.settings.spacingHeading, body: spacingControls.element },
       { title: copy.settings.colorHeading, body: colorControls.element },
       { title: copy.settings.ttsHeading, body: ttsSettings.element },
+      { title: copy.settings.highlightHeading, body: highlightControls.element },
     ],
     // initialOpenIndex は指定しない → 最初は全て閉じる
   });

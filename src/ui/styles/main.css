@@ -303,6 +303,36 @@ body {
   margin: 0 -0.1em;
 }
 
+/* === Word boundary zebra (奇数番目の単語に薄い帯) ===
+   reading-area--zebra クラスが ON のときに kuromoji 分割された
+   各 token を交互に塗り分けて、単語のまとまりを視覚化する。 */
+.reading-area--zebra .reading-area__token:nth-of-type(odd) {
+  background-color: rgba(34, 34, 34, 0.05);
+  border-radius: 0.15rem;
+  padding: 0.02em 0.05em;
+  margin: 0 -0.05em;
+}
+
+/* zebra と TTS 同期ハイライトが両方付いた場合は、ハイライト優先 */
+.reading-area--zebra .reading-area__token--highlighted {
+  background-color: rgba(255, 215, 90, 0.55);
+}
+
+/* === Line highlight (段落 hover) ===
+   reading-area--line-highlight が ON のときに preview の <p> を
+   ホバーすると控えめな帯で強調。今読んでいる場所を見失わない補助。 */
+.reading-area--line-highlight .reading-area__preview p {
+  border-radius: 0.3rem;
+  padding: 0.15em 0.3em;
+  margin-left: -0.3em;
+  margin-right: -0.3em;
+  transition: background-color 120ms ease;
+}
+
+.reading-area--line-highlight .reading-area__preview p:hover {
+  background-color: rgba(255, 220, 100, 0.18);
+}
+
 .reading-area__preview p:last-child {
   margin-bottom: 0;
 }
@@ -451,6 +481,52 @@ body {
 .tts-settings__voice-select:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Highlight controls (settings-panel の親「ハイライト」内)
+   ========================================================================== */
+.highlight-controls__intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.highlight-controls__field {
+  margin-bottom: 1rem;
+}
+
+.highlight-controls__field:last-child {
+  margin-bottom: 0;
+}
+
+.highlight-controls__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.highlight-controls__checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin: 0;
+}
+
+.highlight-controls__toggle-label {
+  font-weight: 500;
+}
+
+.highlight-controls__hint {
+  margin: 0.3rem 0 0 1.65rem;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+  line-height: 1.5;
 }
 
 /* ==========================================================================

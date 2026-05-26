@@ -59,6 +59,12 @@ export interface Settings {
   ttsRate: number;
   /** 選択した音声の voiceURI。null は端末の標準（最初の日本語音声） */
   ttsVoiceURI: string | null;
+  /** 単語境界マーカー（kuromoji 分割で各単語を zebra 表示） */
+  wordBoundaryHighlight: boolean;
+  /** 行ハイライト（マウスホバー/クリックで現在の段落を強調） */
+  lineHighlight: boolean;
+  /** 読み上げ同期ハイライト（onboundaryでの単語追従、ベストエフォート） */
+  ttsSyncHighlight: boolean;
 }
 
 /**
@@ -77,4 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   customText: null,
   ttsRate: 1.0,
   ttsVoiceURI: null,
+  wordBoundaryHighlight: true, // 最も安定 + 研究的に有効なので初期 ON
+  lineHighlight: true, // ホバー時のみ反応するので初期 ON でも邪魔にならない
+  ttsSyncHighlight: false, // 精度が不安定なので初期 OFF、欲しい人だけ ON
 };
