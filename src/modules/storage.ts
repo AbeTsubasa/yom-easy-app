@@ -76,6 +76,14 @@ export function loadSettings(): Settings | null {
     if (!('lineMode' in (parsed as object))) {
       merged.lineMode = merged.lineZebra ? 'zebra' : 'off';
     }
+    // Sprint 7 で追加した 4 フラグは、保存値に無ければ DEFAULT_SETTINGS の値
+    // （maxWidth=40, ttsParagraphSync=false, focusMode=false, chunkedEnabled=false）
+    // で初期化される。spread の初期化で自動で埋まるので、明示的なマイグレは不要。
+    // ただし、maxWidth が想定外の値（NaN や負値）になっていたら安全側に倒す。
+    if (typeof merged.maxWidth !== 'number' || !Number.isFinite(merged.maxWidth)) {
+      merged.maxWidth = DEFAULT_SETTINGS.maxWidth;
+    }
+    merged.maxWidth = Math.max(24, Math.min(90, merged.maxWidth));
     return merged;
   } catch {
     return null;

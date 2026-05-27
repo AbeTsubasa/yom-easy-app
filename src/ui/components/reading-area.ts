@@ -43,6 +43,24 @@ export interface ReadingAreaController {
   setZebraEnabled: (enabled: boolean) => void;
   /** 行ハイライト（段落 hover）を有効/無効。v1.0 では UI から削除済 */
   setLineHighlightEnabled: (enabled: boolean) => void;
+  /**
+   * Focus モード（注目段落以外を薄める）の ON/OFF（Sprint 7）。
+   * ON のときは `.reading-area--focus-mode` クラスが付き、focused 以外の
+   * `<p>` が CSS で opacity 低下する。
+   */
+  setFocusMode: (enabled: boolean) => void;
+  /**
+   * 現在「注目している段落」の index を設定。
+   * null で全段落のフォーカスを解除（読み終わり時など）。
+   * 該当する `<p data-paragraph-i="N">` に focused クラスを付与する。
+   * 自動スクロールはしない（呼び出し側で必要なら scrollParagraphIntoView）。
+   */
+  setFocusedParagraphIndex: (index: number | null) => void;
+  /**
+   * 指定 index の段落を画面中央へスムーズスクロール。
+   * TTS 同期で「次の段落へ移った」ことを視覚で示すために使う。
+   */
+  scrollParagraphIntoView: (index: number) => void;
 }
 
 /**
@@ -137,11 +155,26 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   let rubyHtml: string | null = null;
   let currentLineMode: LineMode = 'off';
   let lineHighlightEnabled = false;
+  let focusModeEnabled = false;
+  /** 現在「注目」している段落 index。-1 / null は未設定 */
+  let focusedParagraphIndex: number | null = null;
 
   const updateModifierClasses = (): void => {
     wrapper.classList.toggle('reading-area--line-zebra', currentLineMode === 'zebra');
     wrapper.classList.toggle('reading-area--line-flat', currentLineMode === 'flat');
     wrapper.classList.toggle('reading-area--line-highlight', lineHighlightEnabled);
+    wrapper.classList.toggle('reading-area--focus-mode', focusModeEnabled);
+  };
+
+  const applyFocusedClass = (): void => {
+    preview
+      .querySelectorAll('.reading-area__paragraph--focused')
+      .forEach((el) => el.classList.remove('reading-area__paragraph--focused'));
+    if (focusedParagraphIndex === null) return;
+    const el = preview.querySelector<HTMLElement>(
+      `p[data-paragraph-i="${focusedParagraphIndex}"]`,
+    );
+    if (el) el.classList.add('reading-area__paragraph--focused');
   };
 
   const renderEditToggle = (): void => {
@@ -161,20 +194,21 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       preview.innerHTML = '';
       return;
     }
-    // 優先順：ふりがな HTML > kuromoji span > 通常段落描画
+    // 優先順：ふりがな/分かち書き/文節改行 HTML > kuromoji span > 通常段落描画
     if (rubyHtml) {
       preview.innerHTML = rubyHtml;
-      return;
-    }
-    if (highlightTokens) {
+    } else if (highlightTokens) {
       preview.innerHTML = renderTextWithTokens(currentText, highlightTokens);
-      return;
+    } else {
+      // 通常描画。段落単位の TTS 同期 / Focus モードに対応するため、
+      // <p data-paragraph-i="N"> 形式で出力（空段落はスキップして連番）。
+      const nonEmpty = currentText.split(/\n{2,}/).filter((p) => p.trim().length > 0);
+      preview.innerHTML = nonEmpty
+        .map((p, i) => `<p data-paragraph-i="${i}">${nl2br(escapeHtml(p))}</p>`)
+        .join('');
     }
-    const html = currentText
-      .split(/\n{2,}/)
-      .map((p) => `<p>${nl2br(escapeHtml(p))}</p>`)
-      .join('');
-    preview.innerHTML = html;
+    // 描画後に focused クラスを再付与（DOM 再生成で消えるため）
+    applyFocusedClass();
   };
 
   const updateCharCount = (): void => {
@@ -275,6 +309,25 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
       lineHighlightEnabled = enabled;
       updateModifierClasses();
     },
+    setFocusMode: (enabled) => {
+      focusModeEnabled = enabled;
+      updateModifierClasses();
+      if (!enabled) {
+        // OFF にしたら focused 解除も済ませる（CSS でも opacity 戻るので保険）
+        focusedParagraphIndex = null;
+        applyFocusedClass();
+      }
+    },
+    setFocusedParagraphIndex: (index) => {
+      focusedParagraphIndex = index;
+      applyFocusedClass();
+    },
+    scrollParagraphIntoView: (index) => {
+      const el = preview.querySelector<HTMLElement>(`p[data-paragraph-i="${index}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    },
   };
 }
 
@@ -284,24 +337,29 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
  * 行ハイライト（段落 hover）を機能させるため、必ず複数 <p> 構造を維持する。
  */
 function renderTextWithTokens(text: string, tokens: Token[]): string {
-  // 段落境界を保ったまま分割
+  // 段落境界を保ったまま分割。空段落（trim 後 0 文字）はスキップして、
+  // 連番の data-paragraph-i を割り当てる（ruby.ts / tts.ts と同じルール）。
   const paragraphs: { charStart: number; text: string }[] = [];
   let pos = 0;
   for (const part of text.split(/(\n{2,})/)) {
     if (/^\n{2,}$/.test(part)) {
-      pos += part.length; // 区切り自体は描画しない
+      pos += part.length;
     } else if (part.length > 0) {
-      paragraphs.push({ charStart: pos, text: part });
+      if (part.trim().length > 0) {
+        paragraphs.push({ charStart: pos, text: part });
+      }
       pos += part.length;
     }
   }
 
   if (tokens.length === 0) {
-    return paragraphs.map((p) => `<p>${nl2br(escapeHtml(p.text))}</p>`).join('');
+    return paragraphs
+      .map((p, i) => `<p data-paragraph-i="${i}">${nl2br(escapeHtml(p.text))}</p>`)
+      .join('');
   }
 
   return paragraphs
-    .map((p) => {
+    .map((p, pi) => {
       const pStart = p.charStart;
       const pEnd = p.charStart + p.text.length;
       let html = '';
@@ -319,7 +377,7 @@ function renderTextWithTokens(text: string, tokens: Token[]): string {
       if (cursor < pEnd) {
         html += nl2br(escapeHtml(text.slice(cursor, pEnd)));
       }
-      return `<p>${html}</p>`;
+      return `<p data-paragraph-i="${pi}">${html}</p>`;
     })
     .join('');
 }

@@ -16,6 +16,12 @@ export interface Token {
   charStart: number;
   charEnd: number;
   pos: string;
+  /**
+   * POS の下位分類 1（例：助詞 → '接続助詞' / '格助詞' など）。
+   * 文節改行モードで「接続助詞のあと」で改行を入れるために必要。
+   * IPA 辞書で未定義の語では '*' になる。
+   */
+  posDetail1: string;
   /** 読み（カタカナ）。kuromoji 辞書ベース。未知語は surface へフォールバック */
   reading: string;
 }
@@ -92,6 +98,7 @@ export function tokenize(text: string): Token[] {
     charStart: t.word_position - 1,
     charEnd: t.word_position - 1 + t.surface_form.length,
     pos: t.pos,
+    posDetail1: t.pos_detail_1 ?? '*',
     reading: t.reading ?? t.surface_form,
   }));
 }

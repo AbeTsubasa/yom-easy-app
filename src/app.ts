@@ -92,6 +92,10 @@ export function initApp(): void {
   const applyWordSpacing = (em: number): void => {
     document.documentElement.style.setProperty('--reading-word-spacing', `${em}em`);
   };
+  /** 行幅（Sprint 7：Schneps et al. 2013 の根拠で、狭め選択を許可）。 */
+  const applyMaxWidth = (em: number): void => {
+    document.documentElement.style.setProperty('--reading-max-width', `${em}em`);
+  };
   /**
    * 色テーマは reading-area（textarea / プレビュー）にだけ適用する。
    * UI 部品（ヘッダー・設定パネル・ボタン等）は :root のデフォルト値で固定。
@@ -122,6 +126,7 @@ export function initApp(): void {
   applyLetterSpacing(state.settings.letterSpacing);
   applyLineHeight(state.settings.lineHeight);
   applyWordSpacing(state.settings.wordSpacing);
+  applyMaxWidth(state.settings.maxWidth);
   applyThemePreset(state.settings.theme);
   applyHighlightColor(state.settings.highlightColor);
   if (state.settings.customBg) applyCustomBg(state.settings.customBg);
@@ -316,7 +321,7 @@ export function initApp(): void {
     initialText: state.text,
     onTextChange: (text) => {
       state.text = text;
-      if (state.settings.rubyEnabled) debouncedRefreshReading();
+      if (isReadingEnhanced()) debouncedRefreshReading();
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
@@ -328,7 +333,9 @@ export function initApp(): void {
   let lastReadingKey: string | null = null;
 
   const isReadingEnhanced = (): boolean =>
-    state.settings.rubyEnabled || state.settings.wakachiEnabled;
+    state.settings.rubyEnabled ||
+    state.settings.wakachiEnabled ||
+    state.settings.chunkedEnabled;
 
   const refreshReading = async (): Promise<void> => {
     if (!isReadingEnhanced()) {
@@ -342,20 +349,18 @@ export function initApp(): void {
       lastReadingKey = null;
       return;
     }
-    const key = `${state.settings.rubyEnabled ? 'r' : ''}${state.settings.wakachiEnabled ? 'w' : ''}|${text}`;
+    // ふりがな・分かち書き・文節改行の組み合わせをキーに含めて、不要な再生成を避ける
+    const key = `${state.settings.rubyEnabled ? 'r' : ''}${state.settings.wakachiEnabled ? 'w' : ''}${state.settings.chunkedEnabled ? 'c' : ''}|${text}`;
     if (key === lastReadingKey) return;
     try {
-      const paragraphs = text.split(/\n{2,}/);
-      const htmlParas = await Promise.all(
-        paragraphs.map((p) =>
-          generateReadingHtml(p, {
-            withFurigana: state.settings.rubyEnabled,
-            withWakachi: state.settings.wakachiEnabled,
-          }),
-        ),
-      );
+      // 新 generateReadingHtml は段落ラップ（<p data-paragraph-i>）付きの
+      // HTML を 1 度の tokenize で組み立てて返す。app 側でのループは不要。
+      const { html } = await generateReadingHtml(text, {
+        withFurigana: state.settings.rubyEnabled,
+        withWakachi: state.settings.wakachiEnabled,
+        withChunked: state.settings.chunkedEnabled,
+      });
       if (text !== state.text) return; // race condition
-      const html = htmlParas.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
       lastReadingKey = key;
       readingArea.setRubyHtml(html);
     } catch (e) {
@@ -363,8 +368,10 @@ export function initApp(): void {
       showError(copy.settings.rubyError);
       state.settings.rubyEnabled = false;
       state.settings.wakachiEnabled = false;
+      state.settings.chunkedEnabled = false;
       rubyControls.setEnabled(false);
       wakachiControls.setEnabled(false);
+      wakachiControls.setChunked(false);
       persistSettings();
     }
   };
@@ -384,6 +391,91 @@ export function initApp(): void {
    */
   let currentTokens: Token[] | null = null;
 
+  // --- Focus モード（Sprint 7 Feature 2）---
+  // IntersectionObserver で viewport 中央付近の段落 index を追跡し、
+  // reading-area の focused パラグラフを動的に更新する。
+  // TTS 同期 ON＋再生中は観察を抑制し、TTS 側に主導権を渡す。
+  let focusObserver: IntersectionObserver | null = null;
+  let focusMutationObserver: MutationObserver | null = null;
+  let observerSuppressedByTts = false;
+
+  const pickClosestParagraph = (): number | null => {
+    const preview = readingArea.element.querySelector(
+      '.reading-area__preview',
+    ) as HTMLElement | null;
+    if (!preview) return null;
+    const viewportCenter = window.innerHeight / 2;
+    let bestIdx: number | null = null;
+    let bestDistance = Infinity;
+    preview.querySelectorAll<HTMLElement>('p[data-paragraph-i]').forEach((p) => {
+      const rect = p.getBoundingClientRect();
+      // 段落が画面外ならスキップ
+      if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+      const paraCenter = (rect.top + rect.bottom) / 2;
+      const d = Math.abs(paraCenter - viewportCenter);
+      if (d < bestDistance) {
+        bestDistance = d;
+        const i = Number(p.dataset.paragraphI);
+        if (!Number.isNaN(i)) bestIdx = i;
+      }
+    });
+    return bestIdx;
+  };
+
+  const updateFocusFromObserver = (): void => {
+    if (observerSuppressedByTts) return;
+    const idx = pickClosestParagraph();
+    if (idx !== null) readingArea.setFocusedParagraphIndex(idx);
+  };
+
+  const startFocusObserver = (): void => {
+    if (!state.settings.focusMode) return;
+    stopFocusObserver();
+    const preview = readingArea.element.querySelector(
+      '.reading-area__preview',
+    ) as HTMLElement | null;
+    if (!preview) return;
+    // 段落の出入りで再評価。threshold は粗く、scroll では別途 listener で補完。
+    focusObserver = new IntersectionObserver(updateFocusFromObserver, {
+      threshold: [0, 0.25, 0.5, 0.75, 1],
+    });
+    preview.querySelectorAll<HTMLElement>('p[data-paragraph-i]').forEach((p) => {
+      focusObserver?.observe(p);
+    });
+    // preview の段落が差し替わったら observer を貼り直す
+    focusMutationObserver = new MutationObserver(() => {
+      focusObserver?.disconnect();
+      preview.querySelectorAll<HTMLElement>('p[data-paragraph-i]').forEach((p) => {
+        focusObserver?.observe(p);
+      });
+      updateFocusFromObserver();
+    });
+    focusMutationObserver.observe(preview, { childList: true });
+    // scroll でも viewport 中央の段落を更新（IntersectionObserver は threshold で離散的）
+    window.addEventListener('scroll', updateFocusFromObserver, { passive: true });
+    // 初回評価
+    updateFocusFromObserver();
+  };
+
+  const stopFocusObserver = (): void => {
+    if (focusObserver) {
+      focusObserver.disconnect();
+      focusObserver = null;
+    }
+    if (focusMutationObserver) {
+      focusMutationObserver.disconnect();
+      focusMutationObserver = null;
+    }
+    window.removeEventListener('scroll', updateFocusFromObserver);
+  };
+
+  // 初期 focus モード反映
+  readingArea.setFocusMode(state.settings.focusMode);
+  if (state.settings.focusMode) {
+    // observer の起動は DOM 描画完了後に
+    window.requestAnimationFrame(() => startFocusObserver());
+  }
+
   // --- Settings components ---
   const fontPicker = createFontPicker({
     initial: state.settings.fontFamily,
@@ -400,6 +492,7 @@ export function initApp(): void {
       letterSpacing: state.settings.letterSpacing,
       lineHeight: state.settings.lineHeight,
       wordSpacing: state.settings.wordSpacing,
+      maxWidth: state.settings.maxWidth,
     },
     onChange: {
       fontSize: (v) => {
@@ -422,6 +515,11 @@ export function initApp(): void {
         applyWordSpacing(v);
         persistSettings();
       },
+      maxWidth: (v) => {
+        state.settings.maxWidth = v;
+        applyMaxWidth(v);
+        persistSettings();
+      },
     },
   });
 
@@ -437,14 +535,33 @@ export function initApp(): void {
       if (ttsState === 'idle') {
         // 読み上げ終了：TTS 同期ハイライトのみ解除（wordBoundary span は残す）
         readingArea.setHighlightIndex(-1);
+        // TTS が終わったら、focus mode が ON なら observer に主導権を戻す。
+        // OFF なら段落フォーカスをクリア。
+        if (state.settings.focusMode) {
+          observerSuppressedByTts = false;
+          // 直近の viewport を観察し直したいので observer を再起動
+          startFocusObserver();
+        } else {
+          readingArea.setFocusedParagraphIndex(null);
+        }
+      } else if (ttsState === 'playing' && state.settings.ttsParagraphSync) {
+        // TTS が始まり、かつ段落同期 ON なら observer を抑制（フォーカスを TTS に渡す）
+        observerSuppressedByTts = true;
       }
     },
     onBoundary: (ev) => {
-      // ベストエフォート：ttsSyncHighlight が ON のときだけ追従
+      // ベストエフォート：ttsSyncHighlight が ON のときだけ追従（v1.0 では UI から外したが、
+      // 設定としては残っており、true にすると単語境界ハイライトを試みる）
       if (!state.settings.ttsSyncHighlight) return;
       if (!currentTokens) return;
       const idx = findTokenIndex(currentTokens, ev.charIndex);
       if (idx >= 0) readingArea.setHighlightIndex(idx);
+    },
+    onParagraphStart: (paragraphIndex) => {
+      // 段落同期が OFF のときは何もしない（tts.ts は paragraphIndex を毎回通知してくる）
+      if (!state.settings.ttsParagraphSync) return;
+      readingArea.setFocusedParagraphIndex(paragraphIndex);
+      readingArea.scrollParagraphIntoView(paragraphIndex);
     },
     onError: (reason) => {
       if (reason === 'unsupported') showError(copy.tts.unsupported);
@@ -503,6 +620,7 @@ export function initApp(): void {
   const ttsSettings = createTtsSettings({
     initialRate: state.settings.ttsRate,
     initialVoiceURI: state.settings.ttsVoiceURI,
+    initialParagraphSync: state.settings.ttsParagraphSync,
     tts,
     onRateChange: (rate) => {
       state.settings.ttsRate = rate;
@@ -513,6 +631,16 @@ export function initApp(): void {
       state.settings.ttsVoiceURI = voiceURI;
       tts.updateOptions({ voiceURI });
       persistSettings();
+    },
+    onParagraphSyncChange: (enabled) => {
+      state.settings.ttsParagraphSync = enabled;
+      persistSettings();
+      // OFF にしたとき、観察を再開して focus を整える（focusMode が ON なら）
+      if (!enabled) {
+        observerSuppressedByTts = false;
+        if (state.settings.focusMode) updateFocusFromObserver();
+        else readingArea.setFocusedParagraphIndex(null);
+      }
     },
   });
 
@@ -553,6 +681,7 @@ export function initApp(): void {
   const highlightControls = createHighlightControls({
     initialMode: state.settings.lineMode,
     initialColor: state.settings.highlightColor,
+    initialFocusMode: state.settings.focusMode,
     onModeChange: (mode) => {
       state.settings.lineMode = mode;
       // legacy フラグも同期（後方互換）
@@ -564,6 +693,17 @@ export function initApp(): void {
       state.settings.highlightColor = color;
       applyHighlightColor(color);
       persistSettings();
+    },
+    onFocusModeChange: (enabled) => {
+      state.settings.focusMode = enabled;
+      readingArea.setFocusMode(enabled);
+      persistSettings();
+      if (enabled) {
+        startFocusObserver();
+      } else {
+        stopFocusObserver();
+        readingArea.setFocusedParagraphIndex(null);
+      }
     },
   });
 
@@ -579,8 +719,15 @@ export function initApp(): void {
 
   const wakachiControls = createWakachiControls({
     initial: state.settings.wakachiEnabled,
+    initialChunked: state.settings.chunkedEnabled,
     onChange: (enabled) => {
       state.settings.wakachiEnabled = enabled;
+      persistSettings();
+      lastReadingKey = null;
+      void refreshReading();
+    },
+    onChunkedChange: (enabled) => {
+      state.settings.chunkedEnabled = enabled;
       persistSettings();
       lastReadingKey = null;
       void refreshReading();

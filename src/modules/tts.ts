@@ -36,6 +36,18 @@ export interface TtsOptions {
    * UI 側で「お疲れさま」式の控えめなフィードバックを出すために使う。
    */
   onComplete?: () => void;
+  /**
+   * 段落単位 TTS 同期（Sprint 7）。set されると play() は本文を段落で分割し、
+   * 段落 utterance を順番に queue し、各段落の発話開始時に index を通知する。
+   * 段落の境界は \n{2,}。空段落はスキップ。
+   *
+   * 設計判断：
+   *   - SpeechSynthesisUtterance.onboundary は日本語で「段落」境界を返さず、
+   *     さらにブラウザ実装差が大きい。代わりに「段落ごとに発話を切る」方式で、
+   *     段落境界が確実に同期される
+   *   - speechSynthesis.cancel() は queue 全体を破棄するので、stop は従来通り
+   */
+  onParagraphStart?: (paragraphIndex: number) => void;
 }
 
 export interface TtsController {
@@ -90,7 +102,17 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
     return window.speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('ja'));
   };
 
-  const buildUtterance = (text: string): SpeechSynthesisUtterance => {
+  /**
+   * 1 つの utterance を構築。
+   *
+   * paragraphIndex / totalParagraphs を渡すと「段落モード」になり、最後の段落
+   * の onend だけが onComplete を発火する。null の場合は単発モード（従来の挙動）。
+   */
+  const buildUtterance = (
+    text: string,
+    paragraphIndex: number | null,
+    totalParagraphs: number,
+  ): SpeechSynthesisUtterance => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ja-JP';
     utterance.rate = options.rate ?? 1.0;
@@ -109,8 +131,15 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
       if (ja) utterance.voice = ja;
     }
 
-    utterance.onstart = () => setState('playing');
+    utterance.onstart = () => {
+      setState('playing');
+      if (paragraphIndex !== null) {
+        options.onParagraphStart?.(paragraphIndex);
+      }
+    };
     utterance.onend = () => {
+      const isLast = paragraphIndex === null || paragraphIndex === totalParagraphs - 1;
+      if (!isLast) return; // 段落モード：中間 utterance の onend は無視
       const naturallyFinished = !wasStopped;
       wasStopped = false;
       setState('idle');
@@ -171,8 +200,32 @@ export function createTts(initialOptions: TtsOptions = {}): TtsController {
     // wasStopped は立てない（直後の onend は補正対象外）
     if (currentUtterance) wasStopped = true;
     window.speechSynthesis.cancel();
-    currentUtterance = buildUtterance(text);
-    window.speechSynthesis.speak(currentUtterance);
+
+    // 段落モード判定：onParagraphStart が登録されていて、本文に段落境界が
+    // ある場合のみ、段落 utterance を queue する。
+    const useParagraphMode = !!options.onParagraphStart;
+    const paragraphs = useParagraphMode
+      ? text.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0)
+      : [text];
+    if (paragraphs.length === 0) return;
+
+    if (paragraphs.length === 1) {
+      // 段落が 1 つしかない（または通常モード）。単発で投入。
+      // 段落モードでも index 0 を必ず通知したいので、paragraphIndex は 0/1 を渡す。
+      const u = buildUtterance(paragraphs[0], useParagraphMode ? 0 : null, 1);
+      currentUtterance = u;
+      window.speechSynthesis.speak(u);
+      return;
+    }
+
+    // 段落モード：全段落を queue。各 utterance.onstart で index を通知する。
+    // currentUtterance は queue の先頭を入れておく（pause/resume/stop の参照用）。
+    currentUtterance = null;
+    for (let i = 0; i < paragraphs.length; i++) {
+      const u = buildUtterance(paragraphs[i], i, paragraphs.length);
+      if (i === 0) currentUtterance = u;
+      window.speechSynthesis.speak(u);
+    }
   };
 
   const pause = (): void => {

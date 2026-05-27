@@ -7,12 +7,14 @@ export interface SpacingControlsOptions {
     letterSpacing: number;
     lineHeight: number;
     wordSpacing: number;
+    maxWidth: number;
   };
   onChange: {
     fontSize: (value: number) => void;
     letterSpacing: (value: number) => void;
     lineHeight: (value: number) => void;
     wordSpacing: (value: number) => void;
+    maxWidth: (value: number) => void;
   };
 }
 
@@ -22,6 +24,7 @@ export interface SpacingControlsController {
   setLetterSpacing: (value: number) => void;
   setLineHeight: (value: number) => void;
   setWordSpacing: (value: number) => void;
+  setMaxWidth: (value: number) => void;
 }
 
 /**
@@ -89,10 +92,27 @@ export function createSpacingControls(opts: SpacingControlsOptions): SpacingCont
     onChange: opts.onChange.wordSpacing,
   });
 
+  const maxWidth = createRangeControl({
+    id: 'slider-max-width',
+    label: copy.settings.maxWidthLabel,
+    min: 24,
+    max: 90,
+    step: 2,
+    initial: opts.initial.maxWidth,
+    formatValue: (n) => `${n} em`,
+    onChange: opts.onChange.maxWidth,
+  });
+
+  const maxWidthHint = document.createElement('p');
+  maxWidthHint.className = 'spacing-controls__sub-hint';
+  maxWidthHint.textContent = copy.settings.maxWidthHint;
+
   wrapper.appendChild(fontSize.element);
   wrapper.appendChild(letterSpacing.element);
   wrapper.appendChild(lineHeight.element);
   wrapper.appendChild(wordSpacing.element);
+  wrapper.appendChild(maxWidth.element);
+  wrapper.appendChild(maxWidthHint);
 
   return {
     element: wrapper,
@@ -100,5 +120,6 @@ export function createSpacingControls(opts: SpacingControlsOptions): SpacingCont
     setLetterSpacing: letterSpacing.setValue,
     setLineHeight: lineHeight.setValue,
     setWordSpacing: wordSpacing.setValue,
+    setMaxWidth: maxWidth.setValue,
   };
 }

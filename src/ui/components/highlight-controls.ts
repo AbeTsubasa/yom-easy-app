@@ -8,14 +8,17 @@ import {
 export interface HighlightControlsOptions {
   initialMode: LineMode;
   initialColor: HighlightColorKey;
+  initialFocusMode: boolean;
   onModeChange: (mode: LineMode) => void;
   onColorChange: (color: HighlightColorKey) => void;
+  onFocusModeChange: (enabled: boolean) => void;
 }
 
 export interface HighlightControlsController {
   element: HTMLElement;
   setMode: (mode: LineMode) => void;
   setColor: (color: HighlightColorKey) => void;
+  setFocusMode: (enabled: boolean) => void;
 }
 
 /**
@@ -168,6 +171,43 @@ export function createHighlightControls(
   colorSection.appendChild(colorGroup);
   wrapper.appendChild(colorSection);
 
+  // --- Focus モード（Sprint 7） ---
+  const focusSection = document.createElement('div');
+  focusSection.className = 'highlight-controls__focus-section';
+
+  const focusHeading = document.createElement('h4');
+  focusHeading.className = 'highlight-controls__focus-heading';
+  focusHeading.textContent = copy.settings.focusModeHeading;
+
+  const focusHint = document.createElement('p');
+  focusHint.className = 'highlight-controls__focus-hint';
+  focusHint.textContent = copy.settings.focusModeHint;
+
+  const focusToggleLabel = document.createElement('label');
+  focusToggleLabel.className = 'highlight-controls__focus-toggle';
+  focusToggleLabel.htmlFor = 'toggle-focus-mode';
+
+  const focusInput = document.createElement('input');
+  focusInput.type = 'checkbox';
+  focusInput.id = 'toggle-focus-mode';
+  focusInput.className = 'highlight-controls__focus-checkbox';
+  focusInput.checked = opts.initialFocusMode;
+  focusInput.addEventListener('change', () =>
+    opts.onFocusModeChange(focusInput.checked),
+  );
+
+  const focusToggleText = document.createElement('span');
+  focusToggleText.className = 'highlight-controls__focus-toggle-label';
+  focusToggleText.textContent = copy.settings.focusModeLabel;
+
+  focusToggleLabel.appendChild(focusInput);
+  focusToggleLabel.appendChild(focusToggleText);
+
+  focusSection.appendChild(focusHeading);
+  focusSection.appendChild(focusHint);
+  focusSection.appendChild(focusToggleLabel);
+  wrapper.appendChild(focusSection);
+
   applyModeState();
   applyColorState();
 
@@ -180,6 +220,9 @@ export function createHighlightControls(
     setColor: (color) => {
       currentColor = color;
       applyColorState();
+    },
+    setFocusMode: (enabled) => {
+      focusInput.checked = enabled;
     },
   };
 }

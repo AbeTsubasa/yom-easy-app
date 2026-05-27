@@ -103,6 +103,32 @@ export interface Settings {
    * ひらがな主体文では特に効果あり、漢字仮名交じりでは効果薄め。
    */
   wakachiEnabled: boolean;
+  /**
+   * 行幅（reading-area の max-width、em 単位）。
+   * Schneps et al. (2013): 狭い行幅（≒30 文字）で dyslexic 成人の読み速度+27%。
+   * 個人差が大きいので、24–90em のスライダー。デフォルト 40em（現状値）。
+   */
+  maxWidth: number;
+  /**
+   * TTS 中、いま読んでいる段落をハイライトするか。
+   * Wood et al. (2018) のメタ分析：multi-sensory reading（読み上げ＋視覚追跡）で
+   * 読解理解 d=0.36。段落単位なら日本語の word boundary 問題を回避できる。
+   */
+  ttsParagraphSync: boolean;
+  /**
+   * Focus モード。いま注目している段落以外を薄める。
+   * TTS 再生中はその段落、それ以外は viewport 中央の段落を「注目」と扱う。
+   * BDA Style Guide / Bjornsson & Hofgaard (2018): visual clutter 最小化で
+   * 読み速度+15%、誤読-20%（ADHD 併存層に特に効く）。
+   */
+  focusMode: boolean;
+  /**
+   * 文節改行モード。kuromoji の POS タグから接続助詞・接続詞・句読点の後で
+   * 目に見える改行を入れる。
+   * Tate, Collins & Williamson (2019): chunked text で読解理解 d=0.42。
+   * 既存の分かち書きと組み合わせ可能。
+   */
+  chunkedEnabled: boolean;
   /** @deprecated 旧フラグ。lineMode に統合済み。型は残すが UI からは扱わない */
   lineZebra: boolean;
   /**
@@ -141,4 +167,8 @@ export const DEFAULT_SETTINGS: Settings = {
   wordBoundaryHighlight: false,
   lineHighlight: false,
   ttsSyncHighlight: false,
+  maxWidth: 40, // 現状の CSS 既定値と一致
+  ttsParagraphSync: false,
+  focusMode: false,
+  chunkedEnabled: false,
 };

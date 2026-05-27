@@ -136,6 +136,9 @@ export const copy = {
     letterSpacingLabel: '字の間（文字どうしの間隔）',
     lineHeightLabel: '行の間（行と行の間隔）',
     wordSpacingLabel: '語の間（単語どうしの間隔）',
+    maxWidthLabel: '行の幅',
+    maxWidthHint:
+      '行が短いほうが読みやすい人と、広いほうが読みやすい人がいます。研究では「狭め（30 文字くらい）」で読みやすくなる人が多いと報告されています。試してみて、合うほうを選んでください。',
     colorHeading: '読みたい文章の色',
     colorHint:
       '読みたい文章の部分だけ、背景と文字の色を変えられます。「あ」の見え方が参考になります。設定パネルやボタンの色はそのままです。',
@@ -150,6 +153,9 @@ export const copy = {
     ttsSpeedLabel: '読み上げの速さ',
     ttsVoiceLabel: '声',
     ttsVoiceDefault: 'おまかせ（端末の標準）',
+    ttsParagraphSyncLabel: '読み上げ中の段落をハイライト',
+    ttsParagraphSyncHint:
+      '読み上げ中の段落だけを薄く色で示します。耳と目をそろえて読むと、内容が頭に入りやすくなることが研究で報告されています。',
     highlightHeading: 'ハイライト',
     highlightHint:
       '行の見えやすさを助ける表示です。3つから1つを選んでください。日本語でも英語でも同じように動きます。',
@@ -164,16 +170,23 @@ export const copy = {
     highlightColorHeading: 'ハイライトの色',
     highlightColorHint:
       '色は個人差がとても大きいことが研究で分かっています。「正解の色」は決まっていません。合うものを選んでください。',
+    focusModeHeading: '読書フォーカス',
+    focusModeHint:
+      'いま読んでいる段落だけをはっきり、ほかの段落を少し薄く表示します。まわりの文字が気になりやすい方に向いた表示です。',
+    focusModeLabel: '段落フォーカスを使う',
     rubyHeading: 'ふりがな',
     rubyHint:
       '漢字に小さなふりがなを付けます。読みづらい漢字も読める助けになります。初めて ON にすると、辞書の準備に少し時間がかかります。',
     rubyEnableLabel: 'ふりがなを付ける',
     rubyPreparing: 'ふりがなの準備中…',
     rubyError: 'ふりがなの準備に少し問題が起きたみたい。もう一度試してください。',
-    wakachiHeading: '分かち書き',
+    wakachiHeading: '分かち書き・文節改行',
     wakachiHint:
       '単語の区切りに、目に見えるスペースを入れます。ひらがなが多い文章で効果が大きく、漢字とまじった文章では効果が薄めです。',
     wakachiEnableLabel: '分かち書きにする',
+    chunkedHint:
+      '句読点や「〜ので」「〜が」などの区切りで、見える改行を入れます。一度に読むかたまりが短くなるので、長い文がうまく頭に入らないときに試してみてください。',
+    chunkedEnableLabel: '文節ごとに改行する',
   },
   onboarding: {
     welcome: 'ようこそ。',

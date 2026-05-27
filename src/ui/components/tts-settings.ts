@@ -5,14 +5,17 @@ import type { TtsController } from '../../modules/tts';
 export interface TtsSettingsOptions {
   initialRate: number;
   initialVoiceURI: string | null;
+  initialParagraphSync: boolean;
   tts: TtsController;
   onRateChange: (rate: number) => void;
   onVoiceChange: (voiceURI: string | null) => void;
+  onParagraphSyncChange: (enabled: boolean) => void;
 }
 
 export interface TtsSettingsController {
   element: HTMLElement;
   setRate: (rate: number) => void;
+  setParagraphSync: (enabled: boolean) => void;
 }
 
 /**
@@ -92,8 +95,43 @@ export function createTtsSettings(opts: TtsSettingsOptions): TtsSettingsControll
   voiceField.appendChild(voiceSelect);
   wrapper.appendChild(voiceField);
 
+  // 段落同期トグル（Sprint 7：multi-sensory reading）
+  const syncField = document.createElement('div');
+  syncField.className = 'tts-settings__sync-field';
+
+  const syncToggleLabel = document.createElement('label');
+  syncToggleLabel.className = 'tts-settings__toggle';
+  syncToggleLabel.htmlFor = 'toggle-tts-paragraph-sync';
+
+  const syncInput = document.createElement('input');
+  syncInput.type = 'checkbox';
+  syncInput.id = 'toggle-tts-paragraph-sync';
+  syncInput.className = 'tts-settings__checkbox';
+  syncInput.checked = opts.initialParagraphSync;
+  syncInput.addEventListener('change', () =>
+    opts.onParagraphSyncChange(syncInput.checked),
+  );
+
+  const syncText = document.createElement('span');
+  syncText.className = 'tts-settings__toggle-label';
+  syncText.textContent = copy.settings.ttsParagraphSyncLabel;
+
+  syncToggleLabel.appendChild(syncInput);
+  syncToggleLabel.appendChild(syncText);
+  syncField.appendChild(syncToggleLabel);
+
+  const syncHint = document.createElement('p');
+  syncHint.className = 'tts-settings__sub-hint';
+  syncHint.textContent = copy.settings.ttsParagraphSyncHint;
+  syncField.appendChild(syncHint);
+
+  wrapper.appendChild(syncField);
+
   return {
     element: wrapper,
     setRate: speedSlider.setValue,
+    setParagraphSync: (enabled) => {
+      syncInput.checked = enabled;
+    },
   };
 }

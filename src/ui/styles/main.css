@@ -63,10 +63,19 @@
   --reading-letter-spacing: 0.12em;
   --reading-word-spacing: 0.16em;
   --reading-paragraph-spacing: 2em;
+  /* reading-area の最大幅（em）。Sprint 7：Schneps et al. 2013 を根拠に、
+     狭め（24em ≒ 30 文字）から広め（90em）まで可変。 */
+  --reading-max-width: 40em;
   --reading-bg: #faf7f0;
   --reading-text: #222222;
   /* ハイライト帯の色（zebra / flat 共通）。JS から色プリセット切替で書き換え */
   --highlight-band-color: rgba(34, 34, 34, 0.06);
+  /* Focus モードで「注目してない段落」の opacity。これ以上薄くすると
+     周辺視野が無くなって読みづらい人もいるので、0.35 で妥協点を取る。 */
+  --reading-focus-dim: 0.35;
+  /* TTS 同期で「いま読んでいる段落」に付ける淡い背景。focus mode に
+     かかわらず常時こちらが先に発火する。 */
+  --reading-focused-bg: rgba(34, 34, 34, 0.05);
 
   /* Layout */
   --content-padding: 1.25rem;
@@ -463,6 +472,10 @@ body {
    反映対象。これら2要素以外には reading-* 変数が漏れないようにする。 */
 .reading-area__textarea {
   width: 100%;
+  /* Sprint 7：行幅は preview と同じ可変幅で中央寄せ */
+  max-width: var(--reading-max-width);
+  margin-inline: auto;
+  display: block;
   min-height: 14em;
   padding: 1rem;
   border: 1px solid var(--border-color);
@@ -492,6 +505,9 @@ body {
   line-height: var(--reading-line-height);
   letter-spacing: var(--reading-letter-spacing);
   word-spacing: var(--reading-word-spacing);
+  /* Sprint 7：行幅スライダー。中央寄せして reading column 内で読みやすい幅に。 */
+  max-width: var(--reading-max-width);
+  margin-inline: auto;
   transition:
     background-color 180ms ease,
     color 180ms ease;
@@ -588,6 +604,61 @@ body {
 
 .reading-area__preview p:last-child {
   margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Focus モード（Sprint 7 Feature 2）— BDA / Bjornsson & Hofgaard 2018
+   注目している段落以外を opacity で薄める。視覚ノイズを減らす。
+   ========================================================================== */
+.reading-area__preview p {
+  /* Focus モード ON / OFF の切替を滑らかに（reduced-motion で短縮される） */
+  transition:
+    opacity 220ms ease,
+    background-color 180ms ease;
+}
+
+.reading-area--focus-mode .reading-area__preview > p {
+  opacity: var(--reading-focus-dim);
+}
+
+.reading-area--focus-mode
+  .reading-area__preview
+  > p.reading-area__paragraph--focused {
+  opacity: 1;
+}
+
+/* TTS 同期 / Focus 双方で使う「注目段落」の淡い背景。
+   focus mode が OFF でも、TTS 同期だけで使った場合に視認できるよう
+   背景色を独立して当てる（opacity の有無に依存しない）。 */
+.reading-area__preview > p.reading-area__paragraph--focused {
+  background-color: var(--reading-focused-bg);
+  border-radius: 0.25rem;
+  /* 文字位置を変えないため、内側 padding ではなく外側 margin で間隔を取る */
+  padding-inline: 0.4em;
+  margin-inline: -0.4em;
+}
+
+/* ==========================================================================
+   文節改行（Sprint 7 Feature 3）— Tate et al. 2019
+   接続助詞・接続詞・句読点の後に「見える改行」を入れる。
+   chunk-break span は中身ゼロ、display: block で改行効果。
+   ========================================================================== */
+.reading-area__chunk-break {
+  display: block;
+  height: 0.35em; /* 行間より少し広め、段落より狭めの「文節間」 */
+}
+
+/* 印刷時は文節改行を控えめに（紙面で行が増えるのを最小化） */
+@media print {
+  .reading-area__chunk-break {
+    height: 0.15em;
+  }
+  /* Focus モードの dimming は印刷で意味がないので戻す */
+  .reading-area--focus-mode .reading-area__preview > p,
+  .reading-area__preview > p.reading-area__paragraph--focused {
+    opacity: 1 !important;
+    background-color: transparent !important;
+  }
 }
 
 .reading-area__empty {
@@ -719,6 +790,33 @@ body {
   color: var(--text-color);
 }
 
+.tts-settings__sync-field {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tts-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.tts-settings__checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin: 0;
+}
+
+.tts-settings__toggle-label {
+  font-weight: 500;
+}
+
 .tts-settings__voice-select {
   appearance: auto;
   padding: 0.5rem;
@@ -805,23 +903,47 @@ body {
 }
 
 /* === Highlight color section === */
-.highlight-controls__color-section {
+.highlight-controls__color-section,
+.highlight-controls__focus-section {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px dashed var(--accent-color);
 }
 
-.highlight-controls__color-heading {
+.highlight-controls__color-heading,
+.highlight-controls__focus-heading {
   margin: 0 0 0.4rem;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
-.highlight-controls__color-hint {
+.highlight-controls__color-hint,
+.highlight-controls__focus-hint {
   margin: 0 0 0.8rem;
   font-size: 0.82rem;
   color: var(--muted-color);
   line-height: 1.5;
+}
+
+.highlight-controls__focus-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.highlight-controls__focus-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin: 0;
+}
+
+.highlight-controls__focus-toggle-label {
+  font-weight: 500;
 }
 
 .highlight-controls__color-group {
@@ -931,6 +1053,16 @@ body {
 .ruby-controls__toggle-label,
 .wakachi-controls__toggle-label {
   font-weight: 500;
+}
+
+/* 文節改行・行幅・TTS 同期の補足説明（控えめ・本文との階層感を出す） */
+.wakachi-controls__sub-hint,
+.spacing-controls__sub-hint,
+.tts-settings__sub-hint {
+  margin: 0.6rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+  line-height: 1.55;
 }
 
 /* === 分かち書きの細スペース ===
