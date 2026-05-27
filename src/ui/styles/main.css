@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Reduced motion（WCAG 2.3.3, 受け入れ基準 Sprint 6 Day 5）
+   OS で「視差効果を減らす／動きを減らす」をオンにしている方には、
+   アコーディオンの開閉やボタンの transition も最小化する。
+   止めるのではなく十分短くする（DOM 状態の追跡は変えない）。
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* OpenDyslexic は @fontsource を jsDelivr 経由でロード。
    合う方には合うが研究では効果が分かれるフォントなので、
    ユーザーが選んだ時だけ実際に効くようにする（強制しない）。 */
@@ -940,7 +957,9 @@ body {
   border-top: 2px solid var(--border-color);
   border-radius: 1.25rem 1.25rem 0 0;
   padding: 0.4rem 1.25rem 1.25rem;
-  height: 33vh;
+  /* WCAG 1.4.12: ユーザーが letter-spacing / line-height を上書きしても
+     パネル自体が縮まないよう、固定 height ではなく max-height + overflow で対応。
+     これで中身が増えても、スクロールで全部に届く。 */
   max-height: 33vh;
   overflow-y: auto;
   z-index: 50;
@@ -1595,15 +1614,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 1rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.18);
   font-size: 0.8125rem;
-  color: rgba(0, 0, 0, 0.55);
+  /* WCAG AAA: #444 vs #FAF7F0 ≈ 9.5:1。フッターは UI chrome なので
+     reading-area の色テーマには連動させず、固定値で十分なコントラストを確保。 */
+  color: #444444;
 }
 
 @media (prefers-color-scheme: dark) {
   .app-footer {
-    border-top-color: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.55);
+    border-top-color: rgba(255, 255, 255, 0.25);
+    /* dark の body bg がブラウザに任せて切り替わった場合に備えて、
+       濃灰の地に対しても AAA を満たす淡灰を当てる。 */
+    color: #d0d0d0;
   }
 }
 
@@ -1626,11 +1649,16 @@ body {
   transition: border-color 120ms ease, color 120ms ease;
 }
 
-.app-footer__link:hover,
-.app-footer__link:focus-visible {
-  color: var(--text-color, #222);
+.app-footer__link:hover {
+  /* hover でさらに濃く（リンクが操作対象だと伝わる）。AAA をさらに上回るコントラスト。 */
+  color: #1a1a1a;
   border-bottom-color: currentColor;
-  outline: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-footer__link:hover {
+    color: #ffffff;
+  }
 }
 
 .app-footer__link:focus-visible {

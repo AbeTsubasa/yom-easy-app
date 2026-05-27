@@ -1,6 +1,7 @@
 import { copy } from '../copy/ja';
 import { FONT_MAP } from '../../modules/font-registry';
 import { THEME_MAP } from '../../modules/theme-registry';
+import { createFocusTrap, type FocusTrapHandle } from '../../modules/focus-trap';
 import type { FontFamilyKey, ThemeKey } from '../../types/settings';
 
 export interface OnboardingResult {
@@ -60,7 +61,6 @@ export function createOnboarding(opts: OnboardingOptions): HTMLElement {
   skipButton.type = 'button';
   skipButton.className = 'onboarding__skip';
   skipButton.textContent = copy.onboarding.skip;
-  skipButton.addEventListener('click', () => opts.onSkip());
 
   card.appendChild(progressEl);
   card.appendChild(titleEl);
@@ -69,6 +69,36 @@ export function createOnboarding(opts: OnboardingOptions): HTMLElement {
   card.appendChild(choicesRow);
   card.appendChild(skipButton);
   overlay.appendChild(card);
+
+  // フォーカストラップ。完了 or スキップで detach() を呼ぶ。
+  let trap: FocusTrapHandle | null = null;
+  const detachTrap = (): void => {
+    if (trap) {
+      trap.detach();
+      trap = null;
+    }
+  };
+  // overlay が DOM に入った直後にトラップを開始する
+  // （ResizeObserver の初回コールバックで初期フォーカスが当たる）
+  const startTrap = (): void => {
+    if (overlay.isConnected && !trap) {
+      trap = createFocusTrap({ container: overlay });
+    }
+  };
+  const mountObserver = new MutationObserver(() => {
+    if (overlay.isConnected) {
+      startTrap();
+      mountObserver.disconnect();
+    } else {
+      detachTrap();
+    }
+  });
+  mountObserver.observe(document.body, { childList: true, subtree: true });
+
+  skipButton.addEventListener('click', () => {
+    detachTrap();
+    opts.onSkip();
+  });
 
   // 状態
   let step: 0 | 1 | 2 = 0;
@@ -154,6 +184,7 @@ export function createOnboarding(opts: OnboardingOptions): HTMLElement {
     Object.assign(choices, partial);
     if (step === 2) {
       // 全問完了。デフォルトで埋めて完了コールバック
+      detachTrap();
       opts.onComplete({
         fontFamily: choices.fontFamily ?? 'ud-kyokasho',
         theme: choices.theme ?? 'cream',

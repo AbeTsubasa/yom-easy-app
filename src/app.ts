@@ -644,9 +644,9 @@ export function initApp(): void {
   // --- Layout ---
   const header = createHeader();
 
+  // <main> はネイティブで role=main を持つので、setAttribute は冗長。削除済み。
   const main = document.createElement('main');
   main.className = 'app-main';
-  main.setAttribute('role', 'main');
 
   const readingColumn = document.createElement('div');
   readingColumn.className = 'app-main__reading-column';

@@ -1,4 +1,5 @@
 import { copy } from '../copy/ja';
+import { createFocusTrap, type FocusTrapHandle } from '../../modules/focus-trap';
 
 export interface ImagePreviewOptions {
   /** 表示する画像の Object URL */
@@ -130,9 +131,24 @@ export function createImagePreview(opts: ImagePreviewOptions): ImagePreviewContr
     if (e.key === 'Escape') opts.onClose();
   };
   document.addEventListener('keydown', onKeyDown);
+
+  // フォーカストラップ。初期フォーカスは「文字を読み取る」ボタン（主要アクション）に。
+  // 閉じる ✕ ではなく、ユーザーが期待する操作にカーソルを置く。
+  let trap: FocusTrapHandle | null = null;
   const observer = new MutationObserver(() => {
-    if (!overlay.isConnected) {
+    if (overlay.isConnected) {
+      if (!trap) {
+        trap = createFocusTrap({
+          container: overlay,
+          initialFocus: recognizeButton,
+        });
+      }
+    } else {
       document.removeEventListener('keydown', onKeyDown);
+      if (trap) {
+        trap.detach();
+        trap = null;
+      }
       observer.disconnect();
     }
   });
