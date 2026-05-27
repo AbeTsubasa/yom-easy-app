@@ -1,9 +1,18 @@
 {
   "name": "yom-easy-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "あなたに合う読み方を見つけるツール",
+  "license": "MIT",
+  "homepage": "https://abetsubasa.github.io/yom-easy-app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AbeTsubasa/yom-easy-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AbeTsubasa/yom-easy-app/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

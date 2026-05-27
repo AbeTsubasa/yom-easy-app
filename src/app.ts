@@ -740,10 +740,52 @@ export function initApp(): void {
     applyLoadResult(result);
   });
 
+  // --- Footer（静かにバージョンと PRIVACY / CREDITS / LICENSE / Issues へのリンク） ---
+  const REPO_URL = 'https://github.com/AbeTsubasa/yom-easy-app';
+  const footer = document.createElement('footer');
+  footer.className = 'app-footer';
+  footer.setAttribute('role', 'contentinfo');
+
+  const version = document.createElement('span');
+  version.className = 'app-footer__version';
+  version.textContent = copy.footer.version;
+  version.setAttribute('aria-label', copy.footer.versionAria);
+  footer.appendChild(version);
+
+  const footerNav = document.createElement('nav');
+  footerNav.className = 'app-footer__links';
+  footerNav.setAttribute('aria-label', 'About this app');
+
+  const makeFooterLink = (href: string, label: string, ariaLabel: string): HTMLAnchorElement => {
+    const a = document.createElement('a');
+    a.className = 'app-footer__link';
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = label;
+    a.setAttribute('aria-label', ariaLabel);
+    return a;
+  };
+
+  footerNav.appendChild(
+    makeFooterLink(`${REPO_URL}/blob/main/PRIVACY.md`, copy.footer.privacy, copy.footer.privacyAria)
+  );
+  footerNav.appendChild(
+    makeFooterLink(`${REPO_URL}/blob/main/CREDITS.md`, copy.footer.credits, copy.footer.creditsAria)
+  );
+  footerNav.appendChild(
+    makeFooterLink(`${REPO_URL}/blob/main/LICENSE`, copy.footer.license, copy.footer.licenseAria)
+  );
+  footerNav.appendChild(
+    makeFooterLink(`${REPO_URL}/issues`, copy.footer.feedback, copy.footer.feedbackAria)
+  );
+  footer.appendChild(footerNav);
+
   // --- Mount ---
   root.innerHTML = '';
   root.appendChild(header);
   root.appendChild(main);
+  root.appendChild(footer);
   root.appendChild(drawerBackdrop);
   root.appendChild(settingsFab);
   root.appendChild(dropOverlay);

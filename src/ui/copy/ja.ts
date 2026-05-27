@@ -202,6 +202,18 @@ export const copy = {
       bName: '広め（行の間 1.8）',
     },
   },
+  footer: {
+    version: 'ベータ版 v0.9.0',
+    versionAria: 'バージョン情報',
+    privacy: 'プライバシー',
+    privacyAria: 'プライバシーポリシーを別タブで開く',
+    credits: 'クレジット',
+    creditsAria: 'クレジット（フォント・ライブラリの謝辞）を別タブで開く',
+    license: 'ライセンス',
+    licenseAria: 'ソースコードのライセンス（MIT）を別タブで開く',
+    feedback: 'バグ報告・要望',
+    feedbackAria: 'GitHub の Issue を別タブで開く',
+  },
 } as const;
 
 export type Copy = typeof copy;
