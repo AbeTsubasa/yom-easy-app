@@ -60,12 +60,32 @@ function nl2br(s: string): string {
  *
  * 単独の助詞（格助詞「は」「を」「に」など）は意味の分節として弱いので切らない。
  */
-function isChunkBoundary(token: Token): boolean {
-  if (token.surface === '、' || token.surface === '，' || token.surface === '。') {
+/**
+ * 句読点判定（小ヘルパ）。接続助詞の直後にこれが来る場合は、改行を
+ * 句読点側に任せて二重改行を防ぐ。
+ */
+function isPunctuation(surface: string): boolean {
+  return surface === '、' || surface === '，' || surface === '。' || surface === '？' || surface === '！';
+}
+
+/**
+ * 「token のあと」で文節改行を入れるべきか。next を見て、接続助詞のあとに
+ * 句読点が続く場合は false にする（句読点側で 1 度だけ改行する）。
+ *
+ *   例：「起きると、段落」→ 「と」のあと FALSE、「、」のあと TRUE
+ *        結果：「起きると、↵ 段落」（「、」が孤立しない）
+ */
+function shouldBreakAfter(token: Token, next: Token | undefined): boolean {
+  // 句読点本体：常に「あと」で改行
+  if (isPunctuation(token.surface)) return true;
+  // 接続詞・接続助詞：次が句読点なら改行を句読点に譲る
+  const isConjunctive =
+    token.pos === '接続詞' ||
+    (token.pos === '助詞' && token.posDetail1 === '接続助詞');
+  if (isConjunctive) {
+    if (next && isPunctuation(next.surface)) return false;
     return true;
   }
-  if (token.pos === '接続詞') return true;
-  if (token.pos === '助詞' && token.posDetail1 === '接続助詞') return true;
   return false;
 }
 
@@ -148,159 +168,153 @@ function applyEnglishChunkedHtml(escapedHtml: string): string {
   return out;
 }
 
+/** 段落分割を 1 か所にまとめたヘルパ（日英いずれも同じ規則）。 */
+function splitIntoParagraphMetas(text: string): ParagraphMeta[] {
+  const metas: ParagraphMeta[] = [];
+  let cursor = 0;
+  for (const part of text.split(/(\n{2,})/)) {
+    if (/^\n{2,}$/.test(part)) {
+      cursor += part.length;
+    } else if (part.length > 0) {
+      if (part.trim().length > 0) {
+        metas.push({
+          index: metas.length,
+          charStart: cursor,
+          charEnd: cursor + part.length,
+          text: part,
+        });
+      }
+      cursor += part.length;
+    }
+  }
+  return metas;
+}
+
 /**
- * 日本語テキストに、ふりがな / 分かち書き / 文節改行 / 段落ラップ を施した
+ * 日本語段落 1 つを HTML 化（ふりがな / 分かち書き / 文節改行を反映）。
+ * tokens は段落範囲に絞り込み済みのものを渡してもよいが、ここでは「全文の
+ * tokens から charStart/charEnd でフィルタ」する方が呼び出し側がシンプル。
+ */
+function renderJapaneseParagraph(
+  p: ParagraphMeta,
+  allText: string,
+  allTokens: Token[],
+  options: ReadingHtmlOptions,
+): string {
+  const wakachiSep = '<span class="reading-area__wakachi"> </span>';
+  const chunkBreak = '<span class="reading-area__chunk-break" aria-hidden="true"></span>';
+
+  const pTokens = allTokens.filter(
+    (t) => t.charStart >= p.charStart && t.charEnd <= p.charEnd,
+  );
+
+  let inner = '';
+  let pCursor = p.charStart;
+
+  for (let i = 0; i < pTokens.length; i++) {
+    const token = pTokens[i];
+
+    if (pCursor < token.charStart) {
+      inner += nl2br(escapeHtml(allText.slice(pCursor, token.charStart)));
+    }
+
+    if (options.withFurigana && containsKanji(token.surface)) {
+      const reading = katakanaToHiragana(token.reading);
+      if (reading.length > 0 && reading !== token.surface) {
+        inner += `<ruby>${escapeHtml(token.surface)}<rt>${escapeHtml(reading)}</rt></ruby>`;
+      } else {
+        inner += nl2br(escapeHtml(token.surface));
+      }
+    } else {
+      inner += nl2br(escapeHtml(token.surface));
+    }
+
+    pCursor = token.charEnd;
+
+    if (i === pTokens.length - 1) continue;
+
+    const next = pTokens[i + 1];
+    const chunkHere = options.withChunked && shouldBreakAfter(token, next);
+    if (chunkHere) {
+      inner += chunkBreak;
+    } else if (
+      options.withWakachi &&
+      !NO_WAKACHI_BOUNDARY.test(token.surface) &&
+      !NO_WAKACHI_BOUNDARY.test(next.surface)
+    ) {
+      inner += wakachiSep;
+    }
+  }
+
+  if (pCursor < p.charEnd) {
+    inner += nl2br(escapeHtml(allText.slice(pCursor, p.charEnd)));
+  }
+
+  return `<p data-paragraph-i="${p.index}">${inner}</p>`;
+}
+
+/**
+ * 英語段落 1 つを HTML 化（文節改行のみ反映）。
+ * ふりがな・分かち書きは英文では自然に不要。
+ */
+function renderEnglishParagraph(
+  p: ParagraphMeta,
+  options: ReadingHtmlOptions,
+): string {
+  let inner = nl2br(escapeHtml(p.text));
+  if (options.withChunked) {
+    inner = applyEnglishChunkedHtml(inner);
+  }
+  return `<p data-paragraph-i="${p.index}">${inner}</p>`;
+}
+
+/**
+ * 日英混在テキストに、ふりがな / 分かち書き / 文節改行 / 段落ラップ を施した
  * HTML と、段落メタ情報を返す。
  *
  * 返す HTML は常に <p data-paragraph-i="N">...</p> の連結。
  * 単一段落のテキストでも <p data-paragraph-i="0">...</p> で囲まれる。
  *
- * Sprint 11：英文主体のテキストは kuromoji を呼ばず、英文用ロジックに分岐。
- * ふりがな・分かち書きは英文に自然に不要なので、文節改行のみ反映する。
+ * Sprint 12：**段落ごとに**英文・和文を判定する。日英が同じ文書に混じっていても
+ * 英語段落には英語規則、日本語段落には kuromoji 規則を適用する。
+ * 全段落が英文なら kuromoji を一切起動しない（辞書ロード待ちなし）。
  */
 export async function generateReadingHtml(
   text: string,
   options: ReadingHtmlOptions = {},
 ): Promise<ReadingHtmlResult> {
-  // 英文主体なら kuromoji を起動しない（辞書ロード待ちもない）。
-  if (isEnglishDominant(text)) {
-    return generateEnglishReadingHtml(text, options);
-  }
-  await ensureTokenizer();
-  const tokens = tokenize(text);
-
-  // 段落境界を計算（原文 text 上での charStart / charEnd）
-  const paragraphMetas: ParagraphMeta[] = [];
-  let cursor = 0;
-  for (const part of text.split(/(\n{2,})/)) {
-    if (/^\n{2,}$/.test(part)) {
-      cursor += part.length; // 区切り自体は描画しない
-    } else if (part.length > 0) {
-      if (part.trim().length > 0) {
-        paragraphMetas.push({
-          index: paragraphMetas.length,
-          charStart: cursor,
-          charEnd: cursor + part.length,
-          text: part,
-        });
-      }
-      cursor += part.length;
-    }
-  }
-
-  // 段落が一つも無い（全部空白）場合は空の HTML を返す
+  const paragraphMetas = splitIntoParagraphMetas(text);
   if (paragraphMetas.length === 0) {
     return { html: '', paragraphs: [] };
   }
 
-  const wakachiSep = '<span class="reading-area__wakachi"> </span>';
-  const chunkBreak = '<span class="reading-area__chunk-break" aria-hidden="true"></span>';
+  // 段落ごとに言語を判定。日本語段落が 1 つでもあれば kuromoji 起動。
+  const langs = paragraphMetas.map((p) => (isEnglishDominant(p.text) ? 'en' : 'ja'));
+  const hasJapanese = langs.includes('ja');
+  const needsTokenize =
+    hasJapanese && (options.withFurigana || options.withWakachi || options.withChunked);
+
+  let allTokens: Token[] = [];
+  if (needsTokenize) {
+    await ensureTokenizer();
+    allTokens = tokenize(text);
+  }
 
   let html = '';
-  for (const p of paragraphMetas) {
-    // この段落に属する tokens
-    const pTokens = tokens.filter(
-      (t) => t.charStart >= p.charStart && t.charEnd <= p.charEnd,
-    );
-
-    let inner = '';
-    let pCursor = p.charStart;
-
-    for (let i = 0; i < pTokens.length; i++) {
-      const token = pTokens[i];
-
-      // token 開始までの隙間（空白・記号等）を出力
-      if (pCursor < token.charStart) {
-        inner += nl2br(escapeHtml(text.slice(pCursor, token.charStart)));
-      }
-
-      // token 本体：ふりがな or プレーン
-      if (options.withFurigana && containsKanji(token.surface)) {
-        const reading = katakanaToHiragana(token.reading);
-        if (reading.length > 0 && reading !== token.surface) {
-          inner += `<ruby>${escapeHtml(token.surface)}<rt>${escapeHtml(reading)}</rt></ruby>`;
-        } else {
-          inner += nl2br(escapeHtml(token.surface));
-        }
-      } else {
-        inner += nl2br(escapeHtml(token.surface));
-      }
-
-      pCursor = token.charEnd;
-
-      // 段落内の最後の token なら、文節改行も分かち書きも入れない
-      if (i === pTokens.length - 1) continue;
-
-      // 文節改行（chunked）と分かち書き（wakachi）は排他：
-      // 改行が優先（改行のあとに見えないスペースは不要）。
-      const next = pTokens[i + 1];
-      const chunkHere = options.withChunked && isChunkBoundary(token);
-      if (chunkHere) {
-        inner += chunkBreak;
-      } else if (
-        options.withWakachi &&
-        !NO_WAKACHI_BOUNDARY.test(token.surface) &&
-        !NO_WAKACHI_BOUNDARY.test(next.surface)
-      ) {
-        inner += wakachiSep;
-      }
+  for (let i = 0; i < paragraphMetas.length; i++) {
+    const p = paragraphMetas[i];
+    if (langs[i] === 'en') {
+      html += renderEnglishParagraph(p, options);
+    } else {
+      html += renderJapaneseParagraph(p, text, allTokens, options);
     }
-
-    // 末尾の余り（最後の token から段落末まで）
-    if (pCursor < p.charEnd) {
-      inner += nl2br(escapeHtml(text.slice(pCursor, p.charEnd)));
-    }
-
-    html += `<p data-paragraph-i="${p.index}">${inner}</p>`;
   }
 
   return { html, paragraphs: paragraphMetas };
 }
 
-/**
- * 英文用の generateReadingHtml（Sprint 11）。
- * kuromoji は呼ばないので非 async。返り値は ReadingHtmlResult と互換。
- *
- * - ふりがな：英文には適用しない（漢字がない）。withFurigana は無視。
- * - 分かち書き：英文には適用しない（既に単語間スペースがある）。withWakachi は無視。
- *   ユーザーが「単語間をもっと広げたい」場合は word-spacing スライダーが効く。
- * - 文節改行：withChunked のとき、applyEnglishChunkedHtml で適用。
- */
-function generateEnglishReadingHtml(
-  text: string,
-  options: ReadingHtmlOptions,
-): ReadingHtmlResult {
-  const paragraphMetas: ParagraphMeta[] = [];
-  let cursor = 0;
-  for (const part of text.split(/(\n{2,})/)) {
-    if (/^\n{2,}$/.test(part)) {
-      cursor += part.length;
-    } else if (part.length > 0) {
-      if (part.trim().length > 0) {
-        paragraphMetas.push({
-          index: paragraphMetas.length,
-          charStart: cursor,
-          charEnd: cursor + part.length,
-          text: part,
-        });
-      }
-      cursor += part.length;
-    }
-  }
-  if (paragraphMetas.length === 0) {
-    return { html: '', paragraphs: [] };
-  }
-
-  let html = '';
-  for (const p of paragraphMetas) {
-    let inner = nl2br(escapeHtml(p.text));
-    if (options.withChunked) {
-      inner = applyEnglishChunkedHtml(inner);
-    }
-    html += `<p data-paragraph-i="${p.index}">${inner}</p>`;
-  }
-  return { html, paragraphs: paragraphMetas };
-}
+/* Sprint 12：旧 generateEnglishReadingHtml は段落単位処理に統合され、
+   renderEnglishParagraph ＋ generateReadingHtml で代替済み。削除。 */
 
 /** 後方互換：ふりがなのみ。HTML 部分だけ返す。 */
 export async function addFurigana(text: string): Promise<string> {
