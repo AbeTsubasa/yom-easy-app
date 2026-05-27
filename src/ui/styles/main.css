@@ -1772,6 +1772,241 @@ body {
 }
 
 /* ==========================================================================
+   Beta notice modal（Sprint 13）— ベータ版テスター向けの案内
+   フッターの「💌 テスターさんへ」から開く。表示専用（操作なし）。
+   ========================================================================== */
+.beta-notice {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 230;
+  overflow-y: auto;
+}
+
+.beta-notice__card {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 44em;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.beta-notice__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.beta-notice__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.beta-notice__close {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 0.4rem;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
+  color: var(--text-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.beta-notice__close:hover {
+  background-color: var(--button-bg-active);
+}
+
+.beta-notice__body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  color: var(--text-color);
+}
+
+.beta-notice__paragraph {
+  margin: 0 0 0.8rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.beta-notice__section {
+  margin: 1.2rem 0;
+  padding-top: 0.8rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.beta-notice__section:first-of-type {
+  margin-top: 0.6rem;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.beta-notice__section-heading {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.beta-notice__bullets {
+  margin: 0 0 0.6rem;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.beta-notice__bullet {
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.beta-notice__feedback-cta {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.7rem 1.25rem;
+  background-color: var(--text-color);
+  color: var(--bg-color);
+  border: 1px solid var(--text-color);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: filter 120ms ease;
+}
+
+.beta-notice__feedback-cta:hover {
+  filter: brightness(1.15);
+}
+
+.beta-notice__feedback-cta:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.beta-notice__feedback-pending {
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: var(--muted-color);
+  font-style: italic;
+}
+
+.beta-notice__section--crisis {
+  background-color: rgba(0, 0, 0, 0.03);
+  margin-inline: -0.5rem;
+  padding-inline: 0.9rem;
+  padding-bottom: 0.6rem;
+  border-radius: 0.5rem;
+  border-top-color: rgba(0, 0, 0, 0.12);
+}
+
+.beta-notice__crisis-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.beta-notice__crisis-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.beta-notice__crisis-label {
+  font-weight: 600;
+}
+
+.beta-notice__crisis-tel {
+  color: var(--text-color);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.beta-notice__crisis-tel:hover {
+  filter: brightness(1.3);
+}
+
+.beta-notice__crisis-tel:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.beta-notice__crisis-note {
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+.beta-notice__closing {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+.beta-notice__signature {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+.beta-notice__footer {
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.beta-notice__footer-close {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid var(--text-color);
+  border-radius: 0.5rem;
+  padding: 0.55rem 1.2rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-color);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.beta-notice__footer-close:hover {
+  background-color: var(--text-color);
+  color: var(--bg-color);
+}
+
+.beta-notice__footer-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
    Settings panel：ナビボタン + グループ見出し（Sprint 8）
    ========================================================================== */
 .settings-panel__nav {
@@ -2019,7 +2254,8 @@ body {
   .drop-overlay,
   .onboarding,
   .image-preview,
-  .aid-navigator {
+  .aid-navigator,
+  .beta-notice {
     display: none !important;
   }
 
@@ -2101,9 +2337,42 @@ body {
   }
 }
 
+/* 左側ブロック：バージョン表示と、ベータ期間中のテスター案内トリガー */
+.app-footer__left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+
 .app-footer__version {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
+}
+
+/* ベータ案内ボタン。バージョン横で、押せるが押し付けがましくない見た目に */
+.app-footer__beta-trigger {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1.3;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.app-footer__beta-trigger:hover {
+  background-color: var(--text-color, #222);
+  color: var(--bg-color, #faf7f0);
+}
+
+.app-footer__beta-trigger:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
 }
 
 .app-footer__links {

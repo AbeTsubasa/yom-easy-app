@@ -12,6 +12,8 @@ import { createFileInput } from './ui/components/file-input';
 import { createFontPicker } from './ui/components/font-picker';
 import { createSettingsPanel } from './ui/components/settings-panel';
 import { createAidNavigator } from './ui/components/aid-navigator';
+import { createBetaNotice } from './ui/components/beta-notice';
+import { IS_BETA, BETA_FEEDBACK_FORM_URL } from './config/beta';
 import { createSpacingControls } from './ui/components/spacing-controls';
 import { createColorControls } from './ui/components/color-controls';
 // Sprint 8: 従来の 3 問オンボーディングは、読みやすさナビ（aid-navigator）に置き換え。
@@ -951,11 +953,28 @@ export function initApp(): void {
   footer.className = 'app-footer';
   footer.setAttribute('role', 'contentinfo');
 
+  // 左側：バージョン表示と、ベータ期間中のみ「💌 テスターさんへ」リンク。
+  // 同じグループに置くことで、ベータ表記の文脈で自然に目に入る並びにする。
+  const footerLeft = document.createElement('div');
+  footerLeft.className = 'app-footer__left';
+
   const version = document.createElement('span');
   version.className = 'app-footer__version';
   version.textContent = copy.footer.version;
   version.setAttribute('aria-label', copy.footer.versionAria);
-  footer.appendChild(version);
+  footerLeft.appendChild(version);
+
+  if (IS_BETA) {
+    const betaTrigger = document.createElement('button');
+    betaTrigger.type = 'button';
+    betaTrigger.className = 'app-footer__beta-trigger';
+    betaTrigger.textContent = copy.betaNotice.triggerLabel;
+    betaTrigger.setAttribute('aria-label', copy.betaNotice.triggerAria);
+    betaTrigger.addEventListener('click', () => openBetaNotice());
+    footerLeft.appendChild(betaTrigger);
+  }
+
+  footer.appendChild(footerLeft);
 
   const footerNav = document.createElement('nav');
   footerNav.className = 'app-footer__links';
@@ -1115,6 +1134,23 @@ export function initApp(): void {
     if (!currentNavigator) return;
     currentNavigator.remove();
     currentNavigator = null;
+  };
+
+  // --- ベータ版テスター案内モーダル（IS_BETA=true のときのみ呼び出される） ---
+  let currentBetaNotice: HTMLElement | null = null;
+  const openBetaNotice = (): void => {
+    if (currentBetaNotice) return;
+    const el = createBetaNotice({
+      feedbackUrl: BETA_FEEDBACK_FORM_URL,
+      onClose: () => closeBetaNotice(),
+    });
+    currentBetaNotice = el;
+    root.appendChild(el);
+  };
+  const closeBetaNotice = (): void => {
+    if (!currentBetaNotice) return;
+    currentBetaNotice.remove();
+    currentBetaNotice = null;
   };
 
   // --- First visit：従来の 3 問オンボーディングではなく、読みやすさナビを開く ---
