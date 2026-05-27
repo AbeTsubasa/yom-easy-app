@@ -31,15 +31,14 @@ export const FONT_DEFINITIONS: readonly FontDefinition[] = [
   {
     key: 'ud-kyokasho',
     label: 'UD デジタル教科書体',
-    stack: `"UD Digi Kyokasho NK-R", "UD デジタル 教科書体 N-R", "BIZ UDPGothic", ${FALLBACK}`,
+    // BIZ UDPGothic は Sprint 11 で配信から外したため、フォールバックは
+    // Noto Sans JP（Web フォント）→ system-ui へ。
+    stack: `"UD Digi Kyokasho NK-R", "UD デジタル 教科書体 N-R", "Noto Sans JP", ${FALLBACK}`,
     group: 'jp',
   },
-  {
-    key: 'biz-udp',
-    label: 'BIZ UDP ゴシック',
-    stack: `"BIZ UDPGothic", "Noto Sans JP", ${FALLBACK}`,
-    group: 'jp',
-  },
+  // Sprint 11 で `biz-udp` は font 一覧から削除（実機で表示が安定しなかったため）。
+  // FontFamilyKey 型からも削除し、保存値が biz-udp の既存ユーザーは
+  // storage.ts のマイグレで ud-kyokasho へ自動移行。
   {
     key: 'noto-sans-jp',
     label: 'Noto Sans JP',

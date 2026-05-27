@@ -97,16 +97,75 @@ export interface ReadingHtmlResult {
 }
 
 /**
+ * 英文かどうかを大まかに判定（Sprint 11：英文対応）。
+ * ASCII の英字が CJK 文字より十分多ければ英文扱い。
+ * 完全な言語判定ではないが、教科書・配布資料の英文／和文を見分けるには十分。
+ */
+function isEnglishDominant(text: string): boolean {
+  let asciiLetters = 0;
+  let cjk = 0;
+  for (const ch of text) {
+    const code = ch.codePointAt(0);
+    if (code === undefined) continue;
+    if ((code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a)) {
+      asciiLetters++;
+    } else if (
+      // ひらがな・カタカナ・漢字（CJK 統合漢字を含む）・全角記号
+      (code >= 0x3040 && code <= 0x9fff) ||
+      (code >= 0xff00 && code <= 0xffef)
+    ) {
+      cjk++;
+    }
+  }
+  // 英字が CJK の 2 倍以上、かつ最低 5 文字あれば英文扱い
+  return asciiLetters >= 5 && asciiLetters > cjk * 2;
+}
+
+/**
+ * 英文用の文節改行 HTML を生成（Sprint 11）。
+ * kuromoji は使わず、句読点・接続詞をパターンマッチで切る。
+ *
+ * 切る箇所：
+ *   - カンマ／セミコロン／コロンの直後（数字内の `1.5` などは除く）
+ *   - センテンス末（. ! ?）の直後（次の語が大文字で始まる場合）
+ *   - 接続詞 and / but / or / so / because / while / although / however /
+ *     therefore / moreover / nor / yet / whereas の直前
+ */
+function applyEnglishChunkedHtml(escapedHtml: string): string {
+  const chunkBreak =
+    '<span class="reading-area__chunk-break" aria-hidden="true"></span>';
+  let out = escapedHtml;
+  // 1) 句読点 + 空白 → 句読点 + chunkBreak。数字内の小数点等は前後の空白条件で
+  //    自然と除外される（`1, 234` のような桁区切りは英文では稀）。
+  out = out.replace(/([,;:])\s+/g, `$1${chunkBreak}`);
+  // 2) 文末（. ! ?）の後ろが大文字なら次文の頭で改行
+  out = out.replace(/([.!?])\s+(?=[A-Z])/g, `$1${chunkBreak}`);
+  // 3) 接続詞の直前で改行（語境界判定）
+  out = out.replace(
+    /\s+(?=\b(?:and|but|or|so|because|while|although|however|therefore|moreover|nor|yet|whereas)\b)/gi,
+    chunkBreak,
+  );
+  return out;
+}
+
+/**
  * 日本語テキストに、ふりがな / 分かち書き / 文節改行 / 段落ラップ を施した
  * HTML と、段落メタ情報を返す。
  *
  * 返す HTML は常に <p data-paragraph-i="N">...</p> の連結。
  * 単一段落のテキストでも <p data-paragraph-i="0">...</p> で囲まれる。
+ *
+ * Sprint 11：英文主体のテキストは kuromoji を呼ばず、英文用ロジックに分岐。
+ * ふりがな・分かち書きは英文に自然に不要なので、文節改行のみ反映する。
  */
 export async function generateReadingHtml(
   text: string,
   options: ReadingHtmlOptions = {},
 ): Promise<ReadingHtmlResult> {
+  // 英文主体なら kuromoji を起動しない（辞書ロード待ちもない）。
+  if (isEnglishDominant(text)) {
+    return generateEnglishReadingHtml(text, options);
+  }
   await ensureTokenizer();
   const tokens = tokenize(text);
 
@@ -195,6 +254,51 @@ export async function generateReadingHtml(
     html += `<p data-paragraph-i="${p.index}">${inner}</p>`;
   }
 
+  return { html, paragraphs: paragraphMetas };
+}
+
+/**
+ * 英文用の generateReadingHtml（Sprint 11）。
+ * kuromoji は呼ばないので非 async。返り値は ReadingHtmlResult と互換。
+ *
+ * - ふりがな：英文には適用しない（漢字がない）。withFurigana は無視。
+ * - 分かち書き：英文には適用しない（既に単語間スペースがある）。withWakachi は無視。
+ *   ユーザーが「単語間をもっと広げたい」場合は word-spacing スライダーが効く。
+ * - 文節改行：withChunked のとき、applyEnglishChunkedHtml で適用。
+ */
+function generateEnglishReadingHtml(
+  text: string,
+  options: ReadingHtmlOptions,
+): ReadingHtmlResult {
+  const paragraphMetas: ParagraphMeta[] = [];
+  let cursor = 0;
+  for (const part of text.split(/(\n{2,})/)) {
+    if (/^\n{2,}$/.test(part)) {
+      cursor += part.length;
+    } else if (part.length > 0) {
+      if (part.trim().length > 0) {
+        paragraphMetas.push({
+          index: paragraphMetas.length,
+          charStart: cursor,
+          charEnd: cursor + part.length,
+          text: part,
+        });
+      }
+      cursor += part.length;
+    }
+  }
+  if (paragraphMetas.length === 0) {
+    return { html: '', paragraphs: [] };
+  }
+
+  let html = '';
+  for (const p of paragraphMetas) {
+    let inner = nl2br(escapeHtml(p.text));
+    if (options.withChunked) {
+      inner = applyEnglishChunkedHtml(inner);
+    }
+    html += `<p data-paragraph-i="${p.index}">${inner}</p>`;
+  }
   return { html, paragraphs: paragraphMetas };
 }
 

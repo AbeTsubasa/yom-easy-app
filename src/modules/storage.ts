@@ -84,6 +84,10 @@ export function loadSettings(): Settings | null {
       merged.maxWidth = DEFAULT_SETTINGS.maxWidth;
     }
     merged.maxWidth = Math.max(24, Math.min(90, merged.maxWidth));
+    // Sprint 11：font-family の biz-udp は削除済み。保存値にあれば ud-kyokasho へ。
+    if ((merged.fontFamily as string) === 'biz-udp') {
+      merged.fontFamily = 'ud-kyokasho';
+    }
     return merged;
   } catch {
     return null;

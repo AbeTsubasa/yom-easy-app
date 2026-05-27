@@ -261,61 +261,152 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     }
     // 描画後に focused クラスを再付与（DOM 再生成で消えるため）
     applyFocusedClass();
-    // 行ハイライト帯の周期を、実測した行高に合わせて更新（ふりがな等で
-    // 行ボックスが伸びる場合に CSS の 1em×line-height だけでは追いつかないため）。
-    scheduleLineHeightMeasurement();
+    // 行ハイライト帯を per-line overlay として描き直す。
+    scheduleRenderLineBands();
   };
 
   /**
-   * Sprint 10：行ハイライト帯のズレ修正。
+   * Sprint 11：行ハイライト帯の完全アライメント（per-line overlay）。
    *
-   * `Range.getClientRects()` で本文段落の最初の数行の実際の行高を測り、
-   * CSS 変数 `--reading-measured-line-h` に反映する。ふりがな（ruby）が ON
-   * になると行ボックスが ~0.5em 伸びるが、その分も自動で取れる。
+   * これまでの CSS repeating-linear-gradient は「等間隔の帯」を描くため、
+   * 各行の box 高が等しいことを前提にしていた。実際には、ふりがな・フォント
+   * 差・字間・行間・行幅・文節改行の組み合わせで、ブラウザは行ごとに box
+   * 高を可変に決める。そのため等間隔では原理的にズレる。
    *
-   * `requestAnimationFrame` で 1 度きりに集約し、頻繁な計測を避ける。
-   * ResizeObserver からも呼ばれるので、フォントサイズ・行間・行幅などの
-   * CSS 変数の変化にも自動追従する。
+   * 新方式：各段落で、本文 text node の rect を Range で測り、Y 位置で
+   * グルーピングして「visual line」の上下境界を求める。各 line に専用の
+   * &lt;div class="reading-area__line-band"&gt; を絶対配置で被せる。これで
+   * どんな条件でも、帯は常にその行の実 box にぴったり一致する。
+   *
+   * `rt`（ruby 注釈）は意図的に走査から除外。kanji 本文の行位置だけを取る。
    */
-  let measureScheduled = false;
-  const scheduleLineHeightMeasurement = (): void => {
-    if (measureScheduled) return;
-    measureScheduled = true;
+  let renderLineBandsScheduled = false;
+  const scheduleRenderLineBands = (): void => {
+    if (renderLineBandsScheduled) return;
+    renderLineBandsScheduled = true;
+    // requestAnimationFrame でレイアウト確定後に 1 度だけ実行
     requestAnimationFrame(() => {
-      measureScheduled = false;
-      measureLineHeight();
+      renderLineBandsScheduled = false;
+      renderLineBands();
     });
   };
 
-  const measureLineHeight = (): void => {
-    const firstP = preview.querySelector<HTMLElement>('p[data-paragraph-i]');
-    if (!firstP) return;
-    // ふりがな ON の段落と OFF の段落では 1 行の実高が違うので、
-    // 最初の段落に ruby があるかで probe の中身を切り替える。
-    const hasRuby = !!firstP.querySelector('ruby');
-
-    // Probe：preview の中に一時的に挿入し、フォント / 行高 / 字間 を全部
-    // 継承させた状態で boundingClientRect().height を取る。
-    // 1 文字分（white-space: nowrap で折り返さない）なので、結果＝1 行の実高。
-    const probe = document.createElement('div');
-    // 視覚に出さず、レイアウトにも影響しない位置取り。
-    probe.style.cssText =
-      'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap;';
-    // 「あ」は和文の代表サンプル。ruby ON 時は同じ構造で rt も付ける（→ 行ボックスが伸びる）
-    probe.innerHTML = hasRuby ? '<ruby>あ<rt>あ</rt></ruby>' : 'あ';
-    preview.appendChild(probe);
-    const measured = probe.getBoundingClientRect().height;
-    probe.remove();
-
-    if (Number.isFinite(measured) && measured > 0) {
-      wrapper.style.setProperty('--reading-measured-line-h', `${measured}px`);
-    }
+  /** すべての段落から既存の line overlay を撤去 */
+  const clearLineBands = (): void => {
+    preview
+      .querySelectorAll('.reading-area__line-overlay')
+      .forEach((el) => el.remove());
   };
 
-  // フォントサイズ・行間スライダー等で preview の寸法が変わったら再計測。
-  // ResizeObserver は要素サイズが変わるたびに発火する。
-  const lineHeightObserver = new ResizeObserver(() => scheduleLineHeightMeasurement());
-  lineHeightObserver.observe(preview);
+  /**
+   * 1 つの段落について、本文 text node を走査して visual line の rect を返す。
+   * `<rt>` 内の text node はスキップ（ruby 注釈は行高に関与しない位置にある）。
+   * 同じ Y を共有する rect をグルーピングして 1 行扱いする。
+   */
+  const measureParagraphLines = (
+    p: HTMLElement,
+  ): { topInP: number; height: number }[] => {
+    const pRect = p.getBoundingClientRect();
+
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        // `<rt>` の中身は除外（ruby 注釈の rect は本文行高と無関係に並ぶ）
+        let cur: Node | null = node;
+        while (cur && cur !== p) {
+          if ((cur as Element).tagName === 'RT') return NodeFilter.FILTER_REJECT;
+          cur = cur.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    const rawRects: { top: number; bottom: number }[] = [];
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const clientRects = range.getClientRects();
+      for (let i = 0; i < clientRects.length; i++) {
+        const r = clientRects[i];
+        // 0 width/height の rect は無視（先頭の余白など）
+        if (r.width <= 0 || r.height <= 0) continue;
+        rawRects.push({ top: r.top, bottom: r.bottom });
+      }
+    }
+
+    if (rawRects.length === 0) return [];
+
+    // Y 位置でソート → 同じ行に属する rect を merge（top が近いものを束ねる）
+    rawRects.sort((a, b) => a.top - b.top);
+    const lines: { top: number; bottom: number }[] = [];
+    // line-height の半分くらいの許容差。最小フォントサイズ 14px、line-height 1.2
+    // で 1 行 ~17px。それより小さい差は同じ行とみなす。
+    const tolerance = 4;
+    for (const r of rawRects) {
+      const last = lines[lines.length - 1];
+      if (last && Math.abs(r.top - last.top) < tolerance) {
+        last.bottom = Math.max(last.bottom, r.bottom);
+        last.top = Math.min(last.top, r.top);
+      } else {
+        lines.push({ top: r.top, bottom: r.bottom });
+      }
+    }
+
+    // 段落座標系に変換。隣接 line の bottom と次 top に隙間がある場合は
+    // 行間（line-height による余白）。帯は line box の高さを完全に覆うのが
+    // ふさわしいが、ここでは「本文行の実 rect」だけを返し、ZEBRA / FLAT の
+    // 描画側で行間の扱いを決める。
+    return lines.map((l) => ({
+      topInP: l.top - pRect.top,
+      height: l.bottom - l.top,
+    }));
+  };
+
+  const renderLineBands = (): void => {
+    clearLineBands();
+    if (currentLineMode === 'off') return;
+
+    const paragraphs = preview.querySelectorAll<HTMLElement>('p[data-paragraph-i]');
+    paragraphs.forEach((p) => {
+      const lines = measureParagraphLines(p);
+      if (lines.length === 0) return;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'reading-area__line-overlay';
+      overlay.setAttribute('aria-hidden', 'true');
+
+      // ZEBRA：偶数 index（0, 2, 4 …）の行だけに帯
+      // FLAT： すべての行に帯
+      lines.forEach((line, i) => {
+        if (currentLineMode === 'zebra' && i % 2 === 1) return;
+        const band = document.createElement('div');
+        band.className = 'reading-area__line-band';
+        // 行間（leading）も帯に含めるため、上下に半行間ずつ余裕を持たせる。
+        // 隣の行帯と重ならない範囲で、文字の上下を包み込む見た目になる。
+        // ただし行間が 0 や負になる極端な設定では height のみで描画。
+        const nextLine = lines[i + 1];
+        const prevLine = lines[i - 1];
+        // 上の余白：前の行との中点まで
+        const padTop = prevLine
+          ? (line.topInP - (prevLine.topInP + prevLine.height)) / 2
+          : 0;
+        // 下の余白：次の行との中点まで
+        const padBottom = nextLine
+          ? (nextLine.topInP - (line.topInP + line.height)) / 2
+          : 0;
+        band.style.top = `${line.topInP - Math.max(0, padTop)}px`;
+        band.style.height = `${line.height + Math.max(0, padTop) + Math.max(0, padBottom)}px`;
+        overlay.appendChild(band);
+      });
+
+      p.appendChild(overlay);
+    });
+  };
+
+  // preview の寸法やレイアウトが変わったら overlay を貼り直す。
+  // 文字サイズ・行間・字間・行幅・フォント変更などを ResizeObserver が拾う。
+  const previewResizeObserver = new ResizeObserver(() => scheduleRenderLineBands());
+  previewResizeObserver.observe(preview);
 
   const updateCharCount = (): void => {
     const n = Array.from(currentText.trim()).length;
@@ -405,11 +496,14 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     setLineMode: (mode) => {
       currentLineMode = mode;
       updateModifierClasses();
+      // モード切替（off → zebra / flat、または逆）でも overlay を直ちに更新
+      scheduleRenderLineBands();
     },
     setZebraEnabled: (enabled) => {
       // 旧 API 互換：boolean → LineMode へマップ
       currentLineMode = enabled ? 'zebra' : 'off';
       updateModifierClasses();
+      scheduleRenderLineBands();
     },
     setLineHighlightEnabled: (enabled) => {
       lineHighlightEnabled = enabled;

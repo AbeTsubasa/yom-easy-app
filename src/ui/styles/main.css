@@ -533,45 +533,43 @@ body {
   margin: 0 -0.1em;
 }
 
-/* === Line-level highlights (視覚的な1行単位、折り返し含む) ===
-   段落（<p>）ごとに repeating-linear-gradient を描画する。
-   preview-wide に塗ると段落マージン（--reading-paragraph-spacing）が
-   行高の倍数にならず、段落をまたぐたびに帯と文字がズレていく。
-   段落ごとに塗れば、各段落の上端から帯がリスタートするので、
-   段落マージン・文節改行・ふりがなの行伸びに左右されず、文字と帯が常に合う。
-   - zebra: 1行帯／1行透明 を最終行まで繰り返す
-   - flat : 各行に色帯、行間にわずかな透明帯（行が独立して見える）
+/* === Line-level highlights (Sprint 11：per-line overlay) ===
+   CSS の repeating-linear-gradient による「等間隔の帯」をやめ、JS で
+   各行の実 rect を測ってその位置に &lt;div class="reading-area__line-band"&gt;
+   を配置する。これでフォント・行間・字間・行幅・ふりがな・文節改行の
+   どんな組み合わせでも、帯は常に文字行に完全一致する。
+
+   各 &lt;p&gt; に対して .reading-area__line-overlay の子として配置される。
+   - zebra: 偶数 index の行（0, 2, 4 …）に帯
+   - flat : すべての行に帯（行間は帯の上下半分ずつで包む）
 */
-.reading-area--line-zebra .reading-area__preview > p,
-.reading-area--line-flat .reading-area__preview > p {
-  /* --reading-measured-line-h は reading-area.ts が ResizeObserver で実測した
-     1 行の実 height（px）。ふりがな ON でブラウザが行ボックスを伸ばしても、
-     フォントが切り替わって ascender が変わっても、必ず文字の上下に帯が乗る。
-     フォールバックは旧計算値（最初のレンダリング前など）。 */
-  --line-h: var(
-    --reading-measured-line-h,
-    calc(1em * var(--reading-line-height))
-  );
+
+/* 段落自体は line band を絶対配置する基準になる。
+   isolation: isolate で段落内に独立した stacking context を作り、
+   band の z-index:-1 が段落の外には影響しないようにする。 */
+.reading-area__preview > p {
+  position: relative;
+  isolation: isolate;
 }
 
-.reading-area--line-zebra .reading-area__preview > p {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    var(--highlight-band-color) 0,
-    var(--highlight-band-color) var(--line-h),
-    transparent var(--line-h),
-    transparent calc(var(--line-h) * 2)
-  );
+/* overlay は段落いっぱいに広がる空のレイヤー。band の親 */
+.reading-area__line-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 段落の text は通常フロー（z-index 自動）。overlay を z-index:-1 にすると
+     段落内の他のコンテンツ（文字・ruby）の背面、ただし isolation:isolate の
+     おかげで段落の外（preview の背景）よりは手前に来る。 */
+  z-index: -1;
 }
 
-.reading-area--line-flat .reading-area__preview > p {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    var(--highlight-band-color) 0,
-    var(--highlight-band-color) calc(var(--line-h) * 0.85),
-    transparent calc(var(--line-h) * 0.85),
-    transparent var(--line-h)
-  );
+/* 1 行ぶんの帯。top/height は JS から px で直接書き込まれる */
+.reading-area__line-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-color: var(--highlight-band-color);
+  /* line-band 自体は z-index:auto。overlay 内の積み順は DOM 順で十分。 */
 }
 
 /* === Ruby (furigana) === ruby は preview 内の <ruby><rt> に対して */
@@ -2051,11 +2049,14 @@ body {
     color: #000000 !important;
     border: none !important;
     padding: 0 !important;
-    /* zebra / flat の repeating-linear-gradient を解除 */
-    background-image: none !important;
     min-height: 0 !important;
     /* font-family / font-size / line-height / letter-spacing / word-spacing は
        --reading-* の値を引き継ぐ（ユーザーの読みやすい設定で印刷される） */
+  }
+
+  /* Sprint 11：line overlay は印刷で非表示（紙面はインクを節約する） */
+  .reading-area__line-overlay {
+    display: none !important;
   }
 
   /* ふりがな（rt）は印刷でもそのまま */

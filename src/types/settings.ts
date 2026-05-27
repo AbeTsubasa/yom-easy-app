@@ -10,7 +10,8 @@
 
 export type FontFamilyKey =
   | 'ud-kyokasho'
-  | 'biz-udp'
+  // Sprint 11 で `biz-udp` は削除（実機表示が安定しなかったため）。
+  // 既存ユーザーの保存値は storage.ts のマイグレで ud-kyokasho に自動移行。
   | 'noto-sans-jp'
   | 'meiryo'
   | 'mincho'
