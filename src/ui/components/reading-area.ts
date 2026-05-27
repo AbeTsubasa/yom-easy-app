@@ -261,7 +261,61 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
     }
     // 描画後に focused クラスを再付与（DOM 再生成で消えるため）
     applyFocusedClass();
+    // 行ハイライト帯の周期を、実測した行高に合わせて更新（ふりがな等で
+    // 行ボックスが伸びる場合に CSS の 1em×line-height だけでは追いつかないため）。
+    scheduleLineHeightMeasurement();
   };
+
+  /**
+   * Sprint 10：行ハイライト帯のズレ修正。
+   *
+   * `Range.getClientRects()` で本文段落の最初の数行の実際の行高を測り、
+   * CSS 変数 `--reading-measured-line-h` に反映する。ふりがな（ruby）が ON
+   * になると行ボックスが ~0.5em 伸びるが、その分も自動で取れる。
+   *
+   * `requestAnimationFrame` で 1 度きりに集約し、頻繁な計測を避ける。
+   * ResizeObserver からも呼ばれるので、フォントサイズ・行間・行幅などの
+   * CSS 変数の変化にも自動追従する。
+   */
+  let measureScheduled = false;
+  const scheduleLineHeightMeasurement = (): void => {
+    if (measureScheduled) return;
+    measureScheduled = true;
+    requestAnimationFrame(() => {
+      measureScheduled = false;
+      measureLineHeight();
+    });
+  };
+
+  const measureLineHeight = (): void => {
+    const firstP = preview.querySelector<HTMLElement>('p[data-paragraph-i]');
+    if (!firstP) return;
+    // ふりがな ON の段落と OFF の段落では 1 行の実高が違うので、
+    // 最初の段落に ruby があるかで probe の中身を切り替える。
+    const hasRuby = !!firstP.querySelector('ruby');
+
+    // Probe：preview の中に一時的に挿入し、フォント / 行高 / 字間 を全部
+    // 継承させた状態で boundingClientRect().height を取る。
+    // 1 文字分（white-space: nowrap で折り返さない）なので、結果＝1 行の実高。
+    const probe = document.createElement('div');
+    // 視覚に出さず、レイアウトにも影響しない位置取り。
+    probe.style.cssText =
+      'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap;';
+    // 「あ」は和文の代表サンプル。ruby ON 時は同じ構造で rt も付ける（→ 行ボックスが伸びる）
+    probe.innerHTML = hasRuby ? '<ruby>あ<rt>あ</rt></ruby>' : 'あ';
+    preview.appendChild(probe);
+    const measured = probe.getBoundingClientRect().height;
+    probe.remove();
+
+    if (Number.isFinite(measured) && measured > 0) {
+      wrapper.style.setProperty('--reading-measured-line-h', `${measured}px`);
+    }
+  };
+
+  // フォントサイズ・行間スライダー等で preview の寸法が変わったら再計測。
+  // ResizeObserver は要素サイズが変わるたびに発火する。
+  const lineHeightObserver = new ResizeObserver(() => scheduleLineHeightMeasurement());
+  lineHeightObserver.observe(preview);
 
   const updateCharCount = (): void => {
     const n = Array.from(currentText.trim()).length;

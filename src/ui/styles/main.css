@@ -534,19 +534,27 @@ body {
 }
 
 /* === Line-level highlights (視覚的な1行単位、折り返し含む) ===
-   preview 全体に repeating-linear-gradient で行帯を描画する。
-   1行の高さは reading-line-height（CSS 変数）に追従するので、
-   ユーザーが行間スライダーを動かしても帯がずれない。
+   段落（<p>）ごとに repeating-linear-gradient を描画する。
+   preview-wide に塗ると段落マージン（--reading-paragraph-spacing）が
+   行高の倍数にならず、段落をまたぐたびに帯と文字がズレていく。
+   段落ごとに塗れば、各段落の上端から帯がリスタートするので、
+   段落マージン・文節改行・ふりがなの行伸びに左右されず、文字と帯が常に合う。
    - zebra: 1行帯／1行透明 を最終行まで繰り返す
    - flat : 各行に色帯、行間にわずかな透明帯（行が独立して見える）
 */
-.reading-area--line-zebra .reading-area__preview,
-.reading-area--line-flat .reading-area__preview {
-  /* 1em は --reading-font-size 相当（preview 自体がこれを font-size に持つ） */
-  --line-h: calc(1em * var(--reading-line-height));
+.reading-area--line-zebra .reading-area__preview > p,
+.reading-area--line-flat .reading-area__preview > p {
+  /* --reading-measured-line-h は reading-area.ts が ResizeObserver で実測した
+     1 行の実 height（px）。ふりがな ON でブラウザが行ボックスを伸ばしても、
+     フォントが切り替わって ascender が変わっても、必ず文字の上下に帯が乗る。
+     フォールバックは旧計算値（最初のレンダリング前など）。 */
+  --line-h: var(
+    --reading-measured-line-h,
+    calc(1em * var(--reading-line-height))
+  );
 }
 
-.reading-area--line-zebra .reading-area__preview {
+.reading-area--line-zebra .reading-area__preview > p {
   background-image: repeating-linear-gradient(
     to bottom,
     var(--highlight-band-color) 0,
@@ -554,11 +562,9 @@ body {
     transparent var(--line-h),
     transparent calc(var(--line-h) * 2)
   );
-  background-origin: content-box;
-  background-clip: content-box;
 }
 
-.reading-area--line-flat .reading-area__preview {
+.reading-area--line-flat .reading-area__preview > p {
   background-image: repeating-linear-gradient(
     to bottom,
     var(--highlight-band-color) 0,
@@ -566,8 +572,6 @@ body {
     transparent calc(var(--line-h) * 0.85),
     transparent var(--line-h)
   );
-  background-origin: content-box;
-  background-clip: content-box;
 }
 
 /* === Ruby (furigana) === ruby は preview 内の <ruby><rt> に対して */
@@ -644,14 +648,18 @@ body {
    chunk-break span は中身ゼロ、display: block で改行効果。
    ========================================================================== */
 .reading-area__chunk-break {
+  /* display: block の空要素 → 強制改行のみ、隙間は作らない。
+     0.35em のような中途半端な隙間を入れると、行ハイライト帯の周期
+     （= 1 行の高さ）と食い違い、文節改行のあとから帯と文字がズレるため。
+     文節は「次の行から」だけで十分に視覚的区切りが伝わる。 */
   display: block;
-  height: 0.35em; /* 行間より少し広め、段落より狭めの「文節間」 */
+  height: 0;
 }
 
-/* 印刷時は文節改行を控えめに（紙面で行が増えるのを最小化） */
+/* 印刷時も同じ（紙面で行が増えるのを最小化） */
 @media print {
   .reading-area__chunk-break {
-    height: 0.15em;
+    height: 0;
   }
   /* Focus モードの dimming は印刷で意味がないので戻す */
   .reading-area--focus-mode .reading-area__preview > p,
