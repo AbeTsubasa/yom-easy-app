@@ -109,7 +109,7 @@ export const copy = {
     pickWhatFits: '読みやすい方を選んでみてください。',
     typoOnOcr: '間違いがあれば直してね。',
     dropToOpen: 'ここにファイルを置くと開けます',
-    acceptedTypes: '対応形式：.txt / .md（テキストファイル）',
+    acceptedTypes: '対応形式：.txt / .md / .docx（Word）／ .pdf（テキスト PDF）／ .html',
     shareCopied: '共有用の URL をコピーしました。',
     shareFailed: 'コピーできなかったみたい。アドレスバーの URL を直接コピーしてください。',
     shareNotice: '共有されたリンクから読み込まれた設定で開いています。',
@@ -117,7 +117,16 @@ export const copy = {
   errors: {
     fileUnreadable: 'このファイル、うまく読み込めなかったみたい。別の方法を試してみよう。',
     fileTooLarge: 'ファイルが少し大きすぎるみたい。短めの文章で試してみよう。',
-    fileWrongType: 'このファイル形式は、まだ対応していません。.txt か .md のファイルだと開けます。',
+    fileWrongType:
+      'このファイル形式には、まだ対応していません。対応しているのは .txt / .md / .docx（Word）／ .pdf ／ .html です。',
+    fileDocLegacy:
+      'この .doc（古い Word 形式）は読み込めません。Word で開いて「ファイル → 名前を付けて保存」から「.docx」形式で保存し直すと開けます。',
+    filePages:
+      'Pages のファイルはそのままでは読めません。Pages で開いて「ファイル → 書き出す → Word」を選ぶと .docx になります。それを開いてください。',
+    fileOtherDocFormat:
+      'このファイル形式は、まだ直接は読めません。お使いのアプリで開いて、.docx か .txt 形式で保存し直してから開いてください。',
+    pdfLikelyScanned:
+      'この PDF は文字データが見つかりませんでした。スキャンや写真から作られた PDF かもしれません。1 ページずつスクリーンショットを撮って、📷 カメラの機能から読み取ってみてください。',
     emptyText: '読みたい文章を貼り付けるか、ファイルを開いてください。',
     cameraDenied: 'カメラが使えないみたい。ファイルから選ぶこともできます。',
     ocrEmpty: '文字が見つからなかったみたい。明るいところで、もう一度撮ってみよう。',

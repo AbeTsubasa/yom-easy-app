@@ -198,12 +198,32 @@ export function initApp(): void {
         void refreshReading();
       }
     } else {
-      const message =
-        result.reason === 'wrong-type'
-          ? copy.errors.fileWrongType
-          : result.reason === 'too-large'
-            ? copy.errors.fileTooLarge
-            : copy.errors.fileUnreadable;
+      // Sprint 9：拡張子別に親切なエラー文へ振り分け
+      let message: string;
+      switch (result.reason) {
+        case 'wrong-type':
+          message = copy.errors.fileWrongType;
+          break;
+        case 'too-large':
+          message = copy.errors.fileTooLarge;
+          break;
+        case 'doc-legacy':
+          message = copy.errors.fileDocLegacy;
+          break;
+        case 'pages-proprietary':
+          message = copy.errors.filePages;
+          break;
+        case 'other-doc-format':
+          message = copy.errors.fileOtherDocFormat;
+          break;
+        case 'pdf-likely-scanned':
+          message = copy.errors.pdfLikelyScanned;
+          break;
+        case 'unreadable':
+        default:
+          message = copy.errors.fileUnreadable;
+          break;
+      }
       showError(message);
     }
   };
