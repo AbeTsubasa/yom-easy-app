@@ -5,8 +5,12 @@ import type { LineMode } from '../../types/settings';
 export interface ReadingAreaOptions {
   initialText: string;
   onTextChange: (text: string) => void;
-  /** empty state の「ファイルを開く」CTA から呼ばれる */
+  /** empty state の「📁 ファイル」CTA から呼ばれる */
   onRequestOpenFile?: () => void;
+  /** empty state の「📷 カメラ」CTA から呼ばれる（Sprint 8） */
+  onRequestCamera?: () => void;
+  /** empty state の「💡 読みやすさナビ」CTA から呼ばれる（Sprint 8） */
+  onRequestAidNavigator?: () => void;
 }
 
 export interface ReadingAreaController {
@@ -88,15 +92,43 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
 
   toolbar.appendChild(editToggle);
 
-  // --- Empty state ---
+  // --- Empty state（Sprint 8：迎える設計に） ---
+  // 上から：タイトル → 説明 → reassurance → ナビCTA（主役）→ 区切り
+  // → 3 つの入力方法（paste / file / camera）並列。
   const emptyState = document.createElement('div');
   emptyState.className = 'reading-area__empty';
+
   const emptyTitle = document.createElement('h2');
   emptyTitle.className = 'reading-area__empty-title';
   emptyTitle.textContent = copy.emptyState.title;
+
   const emptyBody = document.createElement('p');
   emptyBody.className = 'reading-area__empty-body';
   emptyBody.textContent = copy.emptyState.body;
+
+  const emptyReassurance = document.createElement('p');
+  emptyReassurance.className = 'reading-area__empty-reassurance';
+  emptyReassurance.textContent = copy.emptyState.reassurance;
+
+  // ナビ CTA（主役）：初めての方をやさしく迎える入口。
+  // onRequestAidNavigator が渡されたときだけ表示する。
+  const navPrompt = document.createElement('p');
+  navPrompt.className = 'reading-area__empty-nav-prompt';
+  navPrompt.textContent = copy.emptyState.navigatorPrompt;
+
+  const navCtaButton = document.createElement('button');
+  navCtaButton.type = 'button';
+  navCtaButton.className = 'reading-area__empty-nav-cta';
+  navCtaButton.textContent = copy.emptyState.navigatorCta;
+  navCtaButton.setAttribute('aria-label', copy.emptyState.navigatorCtaAria);
+  navCtaButton.addEventListener('click', () => opts.onRequestAidNavigator?.());
+
+  // 区切り：「または、直接入れる」を出す
+  const divider = document.createElement('div');
+  divider.className = 'reading-area__empty-divider';
+  divider.setAttribute('aria-hidden', 'true');
+  divider.textContent = 'または';
+
   const emptyActions = document.createElement('div');
   emptyActions.className = 'reading-area__empty-actions';
 
@@ -104,6 +136,7 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
   emptyPasteButton.type = 'button';
   emptyPasteButton.className = 'reading-area__empty-button';
   emptyPasteButton.textContent = copy.emptyState.paste;
+  emptyPasteButton.setAttribute('aria-label', copy.emptyState.pasteAria);
   emptyPasteButton.addEventListener('click', () => {
     setEditing(true);
     setTimeout(() => textarea.focus(), 0);
@@ -111,16 +144,35 @@ export function createReadingArea(opts: ReadingAreaOptions): ReadingAreaControll
 
   const emptyOpenButton = document.createElement('button');
   emptyOpenButton.type = 'button';
-  emptyOpenButton.className = 'reading-area__empty-button reading-area__empty-button--secondary';
+  emptyOpenButton.className = 'reading-area__empty-button';
   emptyOpenButton.textContent = copy.emptyState.openFile;
+  emptyOpenButton.setAttribute('aria-label', copy.emptyState.openFileAria);
   emptyOpenButton.addEventListener('click', () => {
     opts.onRequestOpenFile?.();
   });
 
+  const emptyCameraButton = document.createElement('button');
+  emptyCameraButton.type = 'button';
+  emptyCameraButton.className = 'reading-area__empty-button';
+  emptyCameraButton.textContent = copy.emptyState.camera;
+  emptyCameraButton.setAttribute('aria-label', copy.emptyState.cameraAria);
+  emptyCameraButton.addEventListener('click', () => {
+    opts.onRequestCamera?.();
+  });
+
   emptyActions.appendChild(emptyPasteButton);
   emptyActions.appendChild(emptyOpenButton);
+  emptyActions.appendChild(emptyCameraButton);
+
   emptyState.appendChild(emptyTitle);
   emptyState.appendChild(emptyBody);
+  emptyState.appendChild(emptyReassurance);
+  // ナビ周りはコールバックが渡されたときだけ表示する（後方互換）
+  if (opts.onRequestAidNavigator) {
+    emptyState.appendChild(navPrompt);
+    emptyState.appendChild(navCtaButton);
+    emptyState.appendChild(divider);
+  }
   emptyState.appendChild(emptyActions);
 
   // --- Textarea (edit) ---

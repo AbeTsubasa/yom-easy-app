@@ -11,9 +11,11 @@ import { createReadingArea } from './ui/components/reading-area';
 import { createFileInput } from './ui/components/file-input';
 import { createFontPicker } from './ui/components/font-picker';
 import { createSettingsPanel } from './ui/components/settings-panel';
+import { createAidNavigator } from './ui/components/aid-navigator';
 import { createSpacingControls } from './ui/components/spacing-controls';
 import { createColorControls } from './ui/components/color-controls';
-import { createOnboarding } from './ui/components/onboarding';
+// Sprint 8: 従来の 3 問オンボーディングは、読みやすさナビ（aid-navigator）に置き換え。
+// コンポーネントファイル自体はリポジトリに残しておく（将来差し替えやすいよう）。
 import { createTtsControls, type TtsControlsController } from './ui/components/tts-controls';
 import { createTtsSettings } from './ui/components/tts-settings';
 import { createHighlightControls } from './ui/components/highlight-controls';
@@ -96,6 +98,10 @@ export function initApp(): void {
   const applyMaxWidth = (em: number): void => {
     document.documentElement.style.setProperty('--reading-max-width', `${em}em`);
   };
+  /** 段落間（Sprint 8 で apply 関数化。読みやすさナビが触れるよう公開）。 */
+  const applyParagraphSpacing = (em: number): void => {
+    document.documentElement.style.setProperty('--reading-paragraph-spacing', `${em}em`);
+  };
   /**
    * 色テーマは reading-area（textarea / プレビュー）にだけ適用する。
    * UI 部品（ヘッダー・設定パネル・ボタン等）は :root のデフォルト値で固定。
@@ -127,6 +133,7 @@ export function initApp(): void {
   applyLineHeight(state.settings.lineHeight);
   applyWordSpacing(state.settings.wordSpacing);
   applyMaxWidth(state.settings.maxWidth);
+  applyParagraphSpacing(state.settings.paragraphSpacing);
   applyThemePreset(state.settings.theme);
   applyHighlightColor(state.settings.highlightColor);
   if (state.settings.customBg) applyCustomBg(state.settings.customBg);
@@ -325,6 +332,12 @@ export function initApp(): void {
     },
     onRequestOpenFile: () => {
       nativeFileInput?.click();
+    },
+    onRequestCamera: () => {
+      nativeCameraInput?.click();
+    },
+    onRequestAidNavigator: () => {
+      openAidNavigator();
     },
   });
 
@@ -734,15 +747,40 @@ export function initApp(): void {
     },
   });
 
+  // 設定パネルは Sprint 8 で「機能名で並ぶ 7 個」から「目的別 3 グループ」に整理。
+  // アコーディオン階層は変えず、グループ見出しで束ねるだけ（既存ユーザーが迷わない）。
   const settingsPanel = createSettingsPanel({
-    sections: [
-      { title: copy.settings.fontHeading, body: fontPicker.element },
-      { title: copy.settings.spacingHeading, body: spacingControls.element },
-      { title: copy.settings.colorHeading, body: colorControls.element },
-      { title: copy.settings.ttsHeading, body: ttsSettings.element },
-      { title: copy.settings.highlightHeading, body: highlightControls.element },
-      { title: copy.settings.rubyHeading, body: rubyControls.element },
-      { title: copy.settings.wakachiHeading, body: wakachiControls.element },
+    onNavigatorClick: () => openAidNavigator(),
+    items: [
+      // A. 見やすさを整える — 文字そのものの見え方
+      {
+        kind: 'group',
+        label: copy.settings.groupSeeingLabel,
+        hint: copy.settings.groupSeeingHint,
+      },
+      { kind: 'section', title: copy.settings.fontHeading, body: fontPicker.element },
+      { kind: 'section', title: copy.settings.spacingHeading, body: spacingControls.element },
+      { kind: 'section', title: copy.settings.colorHeading, body: colorControls.element },
+      // B. 読むのを助ける — 読んでいる場所と区切り
+      {
+        kind: 'group',
+        label: copy.settings.groupReadingLabel,
+        hint: copy.settings.groupReadingHint,
+      },
+      {
+        kind: 'section',
+        title: copy.settings.highlightHeading,
+        body: highlightControls.element,
+      },
+      { kind: 'section', title: copy.settings.rubyHeading, body: rubyControls.element },
+      { kind: 'section', title: copy.settings.wakachiHeading, body: wakachiControls.element },
+      // C. 音と読み取り — 聞いて読む / 写真から
+      {
+        kind: 'group',
+        label: copy.settings.groupAudioLabel,
+        hint: copy.settings.groupAudioHint,
+      },
+      { kind: 'section', title: copy.settings.ttsHeading, body: ttsSettings.element },
     ],
     // initialOpenIndex は指定しない → 最初は全て閉じる
   });
@@ -942,30 +980,125 @@ export function initApp(): void {
     showNotice(copy.hints.shareNotice);
   }
 
-  // --- Onboarding (初回のみ表示) ---
-  if (!isOnboardingDone()) {
-    const onboardingEl = createOnboarding({
-      onComplete: (result) => {
-        state.settings.fontFamily = result.fontFamily;
-        state.settings.theme = result.theme;
-        state.settings.lineHeight = result.lineHeight;
-        state.settings.customBg = null;
-        state.settings.customText = null;
-        applyFontFamily(result.fontFamily);
-        applyThemePreset(result.theme);
-        applyLineHeight(result.lineHeight);
-        fontPicker.setSelection(result.fontFamily);
-        colorControls.setPreset(result.theme);
-        spacingControls.setLineHeight(result.lineHeight);
-        markOnboardingDone();
-        saveSettings(state.settings);
-        onboardingEl.remove();
+  // --- 読みやすさナビ（Sprint 8）---
+  // 困りごとから設定を試せるモーダル。empty-state CTA / 設定パネル先頭 /
+  // 初回起動時に呼ばれる。初回は dismiss でも markOnboardingDone する。
+  let currentNavigator: HTMLElement | null = null;
+
+  /**
+   * 「困りごと → 設定」の overrides を、state.settings へマージしつつ、
+   * CSS 変数 / UI コントロール / observer を一斉に同期する。
+   * 1 つの困りごとが複数キーを触るので、まとめて反映するこのヘルパーは必須。
+   */
+  const applyOverrides = (overrides: Partial<Settings>): void => {
+    Object.assign(state.settings, overrides);
+
+    // フォント・間隔・色・行幅・段落間：CSS 変数 + コントロール表示同期
+    if ('fontFamily' in overrides && overrides.fontFamily) {
+      applyFontFamily(overrides.fontFamily);
+      fontPicker.setSelection(overrides.fontFamily);
+    }
+    if (typeof overrides.fontSize === 'number') {
+      applyFontSize(overrides.fontSize);
+      spacingControls.setFontSize(overrides.fontSize);
+    }
+    if (typeof overrides.letterSpacing === 'number') {
+      applyLetterSpacing(overrides.letterSpacing);
+      spacingControls.setLetterSpacing(overrides.letterSpacing);
+    }
+    if (typeof overrides.lineHeight === 'number') {
+      applyLineHeight(overrides.lineHeight);
+      spacingControls.setLineHeight(overrides.lineHeight);
+    }
+    if (typeof overrides.wordSpacing === 'number') {
+      applyWordSpacing(overrides.wordSpacing);
+      spacingControls.setWordSpacing(overrides.wordSpacing);
+    }
+    if (typeof overrides.maxWidth === 'number') {
+      applyMaxWidth(overrides.maxWidth);
+      spacingControls.setMaxWidth(overrides.maxWidth);
+    }
+    if (typeof overrides.paragraphSpacing === 'number') {
+      applyParagraphSpacing(overrides.paragraphSpacing);
+    }
+    // 色テーマ
+    if ('theme' in overrides && overrides.theme) {
+      applyThemePreset(overrides.theme);
+      colorControls.setPreset(overrides.theme);
+      // 自由カラーは null に戻すのが筋（プリセット選び直したら）
+      if (overrides.customBg === null) state.settings.customBg = null;
+      if (overrides.customText === null) state.settings.customText = null;
+    }
+    if ('highlightColor' in overrides && overrides.highlightColor) {
+      applyHighlightColor(overrides.highlightColor);
+      highlightControls.setColor(overrides.highlightColor);
+    }
+    // ハイライト・フォーカス
+    if ('lineMode' in overrides && overrides.lineMode) {
+      readingArea.setLineMode(overrides.lineMode);
+      highlightControls.setMode(overrides.lineMode);
+      state.settings.lineZebra = overrides.lineMode === 'zebra';
+    }
+    if (typeof overrides.focusMode === 'boolean') {
+      readingArea.setFocusMode(overrides.focusMode);
+      highlightControls.setFocusMode(overrides.focusMode);
+      if (overrides.focusMode) startFocusObserver();
+      else {
+        stopFocusObserver();
+        readingArea.setFocusedParagraphIndex(null);
+      }
+    }
+    // TTS 同期
+    if (typeof overrides.ttsParagraphSync === 'boolean') {
+      ttsSettings.setParagraphSync(overrides.ttsParagraphSync);
+    }
+    // ふりがな / 分かち書き / 文節改行：refreshReading が必要
+    let needsRefresh = false;
+    if (typeof overrides.rubyEnabled === 'boolean') {
+      rubyControls.setEnabled(overrides.rubyEnabled);
+      needsRefresh = true;
+    }
+    if (typeof overrides.wakachiEnabled === 'boolean') {
+      wakachiControls.setEnabled(overrides.wakachiEnabled);
+      needsRefresh = true;
+    }
+    if (typeof overrides.chunkedEnabled === 'boolean') {
+      wakachiControls.setChunked(overrides.chunkedEnabled);
+      needsRefresh = true;
+    }
+    if (needsRefresh) {
+      lastReadingKey = null;
+      void refreshReading();
+    }
+    persistSettings();
+  };
+
+  const openAidNavigator = (isFirstVisit = false): void => {
+    if (currentNavigator) return; // 多重起動防止
+    const navEl = createAidNavigator({
+      onApply: (overrides) => {
+        applyOverrides(overrides);
+        showNotice(copy.aidNavigator.noticeApplied);
+        if (isFirstVisit) markOnboardingDone();
+        closeNavigator();
       },
-      onSkip: () => {
-        markOnboardingDone();
-        onboardingEl.remove();
+      onClose: () => {
+        if (isFirstVisit) markOnboardingDone();
+        closeNavigator();
       },
     });
-    root.appendChild(onboardingEl);
+    currentNavigator = navEl;
+    root.appendChild(navEl);
+  };
+
+  const closeNavigator = (): void => {
+    if (!currentNavigator) return;
+    currentNavigator.remove();
+    currentNavigator = null;
+  };
+
+  // --- First visit：従来の 3 問オンボーディングではなく、読みやすさナビを開く ---
+  if (!isOnboardingDone()) {
+    openAidNavigator(true);
   }
 }

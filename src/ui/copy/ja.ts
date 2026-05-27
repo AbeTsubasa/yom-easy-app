@@ -23,9 +23,17 @@ export const copy = {
   },
   emptyState: {
     title: '読みたい文章を、はじめましょう',
-    body: '下のボタンからテキストを貼り付けるか、ファイルを開いてください。設定はあとからいつでも変えられます。',
-    paste: '✏ テキストを貼り付ける',
-    openFile: '📁 ファイルを開く',
+    body: '貼り付ける／ファイルを開く／写真を撮る、好きな方法で文章を入れてください。',
+    reassurance: 'サインアップ不要、あなたの端末の中だけで動きます。',
+    navigatorPrompt: '初めての方は、こちらから ↓',
+    navigatorCta: '💡 読みやすさナビを試す',
+    navigatorCtaAria: '読むときの困りごとから合う設定を探すナビを開く',
+    paste: '✏ 貼り付ける',
+    pasteAria: 'テキストを貼り付けるエディタを開く',
+    openFile: '📁 ファイル',
+    openFileAria: 'テキストファイル（.txt / .md）を開く',
+    camera: '📷 カメラ',
+    cameraAria: '写真を撮るか、画像から文字を読み取る',
   },
   drawer: {
     openLabel: '⚙ 設定',
@@ -121,6 +129,15 @@ export const copy = {
   },
   settings: {
     panelHeading: '読み方の設定',
+    navigatorButton: '💡 読みやすさナビ',
+    navigatorButtonAria: '読むときの困りごとから合う設定を探す',
+    navigatorButtonHint: '困りごとから設定を探せます',
+    groupSeeingLabel: 'A. 見やすさを整える',
+    groupSeeingHint: '文字そのものの見え方を変えます。',
+    groupReadingLabel: 'B. 読むのを助ける',
+    groupReadingHint: '読んでいる場所と、文の区切りを見やすくします。',
+    groupAudioLabel: 'C. 音と読み取り',
+    groupAudioHint: '聞いて読む、写真から文字を取り込む。',
     fontHeading: 'フォント',
     fontHint: 'ボタン自体が、そのフォントで表示されます。試して、合うものを選んでください。',
     groupJp: '日本語向け',
@@ -214,6 +231,47 @@ export const copy = {
       aName: '普通（行の間 1.5）',
       bName: '広め（行の間 1.8）',
     },
+  },
+  aidNavigator: {
+    modalTitle: 'あなたに合う読み方を、いっしょに探しましょう',
+    modalSubtitle:
+      '読むときに困っていることを、いくつでも選んでください。\n選んだことに合いそうな設定を、まとめて試せます。合わなければ、設定パネルでいつでも変えられます。',
+    cancel: 'やめる',
+    cancelAria: '読みやすさナビを閉じる',
+    apply: '選んだことに合う設定を試す',
+    applyAria: '選択した困りごとに対応する設定をまとめて適用する',
+    applyDisabledHint: '選んだものがありません。気になるところを選んでみてください。',
+    issues: {
+      blur: {
+        label: '文字がぼやけて見える・にじむ感じがする',
+        hint: 'はっきりとした輪郭のフォントと、ほどよい字間にします。',
+      },
+      skipLine: {
+        label: '行を読み飛ばしてしまう',
+        hint: '1行おきに薄く色を塗り、いま読んでいる段落だけをくっきり見せます。',
+      },
+      kanji: {
+        label: '漢字でつっかえる',
+        hint: '漢字の上に、自動でふりがなを付けます。',
+      },
+      longSentence: {
+        label: '長い文がうまく頭に入らない',
+        hint: '意味の区切りで改行し、注目している段落だけを濃く表示します。',
+      },
+      glare: {
+        label: '画面が白くてまぶしい・チカチカする',
+        hint: '背景をやわらかいクリーム色に、文字を少し落ち着いた色に変えます。',
+      },
+      soundBetter: {
+        label: '自分で読むより、聞いた方が分かりやすい',
+        hint: '読み上げの準備をして、いま読んでいる段落が分かるようにします。本文を入れた後、🔊 ボタンから始められます。',
+      },
+      wideLine: {
+        label: '行が長すぎて、目が疲れる',
+        hint: '文章の幅を狭めて、目の動きを短くします。',
+      },
+    },
+    noticeApplied: '選んだ困りごとに合う設定を試しています。設定パネルでいつでも変えられます。',
   },
   footer: {
     version: 'ベータ版 v0.9.0',

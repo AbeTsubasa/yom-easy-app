@@ -688,6 +688,70 @@ body {
   line-height: 1.6;
 }
 
+/* Sprint 8：empty-state を「迎える」設計に。
+   reassurance、ナビ CTA、3 ボタンの並列、区切りラベルなど。 */
+.reading-area__empty-reassurance {
+  margin: -0.5rem 0 1.2rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.reading-area__empty-nav-prompt {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+/* ナビ CTA は empty-state の主役。十分大きく、目立たせる。 */
+.reading-area__empty-nav-cta {
+  appearance: none;
+  background-color: var(--text-color);
+  color: var(--bg-color);
+  border: 1px solid var(--text-color);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1.8rem;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.2rem;
+  box-shadow: var(--elevation-1);
+  transition:
+    background-color 150ms ease,
+    transform 100ms ease;
+}
+
+.reading-area__empty-nav-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2);
+}
+
+.reading-area__empty-nav-cta:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.reading-area__empty-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  margin: 0.4rem 0 1rem;
+  width: 100%;
+  max-width: 18rem;
+}
+
+.reading-area__empty-divider::before,
+.reading-area__empty-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
 .reading-area__empty-actions {
   display: flex;
   flex-wrap: wrap;
@@ -705,6 +769,8 @@ body {
   font-size: 1rem;
   color: var(--text-color);
   cursor: pointer;
+  /* 3 ボタン並列で読みやすい最小幅 */
+  min-width: 7rem;
 }
 
 .reading-area__empty-button:hover {
@@ -1125,7 +1191,8 @@ body {
    親テーマが今後増えても両環境で破綻しない設計
    - mobile: 33vh 内に親 5-6 個収まるように padding/font 小さめ
    - PC: 親テーマを縦長で大きく目立たせる（media query で上書き） */
-.settings-panel__accordion {
+.settings-panel__accordion,
+.settings-panel__list {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1509,6 +1576,268 @@ body {
 }
 
 /* ==========================================================================
+   読みやすさナビ（Sprint 8）— 困りごとから設定を試すモーダル
+   onboarding に近い見た目だが、長いチェックリストを抱えられるように
+   max-height を高めに、card 内で縦スクロール可能に。
+   ========================================================================== */
+.aid-navigator {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 220;
+  overflow-y: auto;
+}
+
+.aid-navigator__card {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem 1.25rem;
+  max-width: 40em;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: var(--elevation-2);
+}
+
+.aid-navigator__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.aid-navigator__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted-color);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.aid-navigator__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.aid-navigator__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aid-navigator__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem;
+  align-items: start;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  background-color: var(--bg-color);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.aid-navigator__item:hover {
+  background-color: var(--button-bg-active);
+}
+
+.aid-navigator__item--checked {
+  border-color: var(--text-color);
+  background-color: var(--button-bg-active);
+}
+
+.aid-navigator__checkbox {
+  width: 1.2rem;
+  height: 1.2rem;
+  cursor: pointer;
+  accent-color: var(--text-color);
+  margin-top: 0.18rem;
+}
+
+.aid-navigator__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.aid-navigator__item-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.aid-navigator__item-hint {
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+.aid-navigator__apply-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  text-align: right;
+}
+
+.aid-navigator__apply-hint[hidden] {
+  display: none;
+}
+
+.aid-navigator__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.aid-navigator__cancel {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.aid-navigator__cancel:hover {
+  background-color: var(--button-bg-active);
+}
+
+.aid-navigator__apply {
+  appearance: none;
+  background-color: var(--text-color);
+  color: var(--bg-color);
+  border: 1px solid var(--text-color);
+  border-radius: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aid-navigator__apply:not(:disabled):hover {
+  filter: brightness(1.15);
+}
+
+.aid-navigator__apply:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.aid-navigator__apply:focus-visible,
+.aid-navigator__cancel:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* タブレット以上では item を 2 列でグリッド化（情報量に応じて自動切替） */
+@media (min-width: 720px) {
+  .aid-navigator__list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+}
+
+/* ==========================================================================
+   Settings panel：ナビボタン + グループ見出し（Sprint 8）
+   ========================================================================== */
+.settings-panel__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--accent-color);
+}
+
+.settings-panel__nav-button {
+  appearance: none;
+  background-color: var(--bg-color);
+  border: 1px solid var(--text-color);
+  border-radius: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-color);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+.settings-panel__nav-button:hover {
+  background-color: var(--button-bg-active);
+}
+
+.settings-panel__nav-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.settings-panel__nav-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+/* グループ見出し（アコーディオン以外の単純なラベル） */
+.settings-group {
+  margin: 1.25rem 0 0.4rem;
+}
+
+.settings-group:first-of-type {
+  margin-top: 0.3rem;
+}
+
+.settings-group__heading {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-color);
+  letter-spacing: 0.05em;
+}
+
+.settings-group__hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-color);
+  line-height: 1.5;
+}
+
+/* settings-panel__list は accordion items とグループ見出しをまとめる縦並びコンテナ */
+.settings-panel__list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
    Onboarding modal
    ========================================================================== */
 .onboarding {
@@ -1683,7 +2012,8 @@ body {
   .settings-backdrop,
   .drop-overlay,
   .onboarding,
-  .image-preview {
+  .image-preview,
+  .aid-navigator {
     display: none !important;
   }
 
@@ -1854,7 +2184,8 @@ body {
     font-size: 1.2rem;
   }
 
-  .settings-panel__accordion {
+  .settings-panel__accordion,
+  .settings-panel__list {
     gap: 0.7rem;
   }
 
